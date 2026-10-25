@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cotisations famille Kali</title>
+<style>
+:root{--bg:#F1F5F2;--card:#FFFFFF;--ink:#12261C;--muted:#506258;--line:#C9D6CE;--green:#0F5A3C;--green-ink:#FFFFFF;--err:#A32A1F;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0E1A14;--card:#16261E;--ink:#E7F0EA;--muted:#9DB1A5;--line:#2C4237;--green:#3FAE7B;--green-ink:#08150E;--err:#FF8F82;color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:17px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;padding:20px}
+main{width:100%;max-width:400px}
+h1{font:700 30px/1.15 Georgia,"Times New Roman",serif;margin:0 0 6px}
+p.sub{margin:0 0 24px;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
+label{display:block;font-weight:600;margin:14px 0 6px}
+input{width:100%;font:inherit;padding:13px 14px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+input:focus{outline:3px solid var(--green);outline-offset:1px;border-color:var(--green)}
+button{width:100%;font:inherit;font-weight:700;margin-top:20px;padding:14px;border:0;border-radius:10px;background:var(--green);color:var(--green-ink);cursor:pointer}
+button:disabled{opacity:.6}
+button.link{background:none;color:var(--green);margin-top:14px;padding:8px;font-weight:600;text-decoration:underline}
+.msg{min-height:1.4em;margin:14px 0 0;font-size:15px}
+.msg.err{color:var(--err)}
+.msg.ok{color:var(--green)}
+.hidden{display:none}
+.role{display:inline-block;margin:4px 0 0;padding:3px 10px;border:1px solid var(--line);border-radius:999px;font-size:14px;color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Cotisations famille Kali</h1>
+  <p class="sub" id="sub">Connectez-vous avec votre adresse email.</p>
+
+  <div class="card">
+    <!-- Connexion -->
+    <div id="v-login">
+      <label for="email">Adresse email</label>
+      <input id="email" type="email" inputmode="email" autocomplete="username" autocapitalize="none">
+      <label for="pw">Mot de passe</label>
+      <input id="pw" type="password" autocomplete="current-password">
+      <button id="b-login">Se connecter</button>
+      <button class="link" id="b-forgot">Mot de passe oublié</button>
+    </div>
+
+    <!-- Mot de passe oublié -->
+    <div id="v-forgot" class="hidden">
+      <label for="email2">Adresse email</label>
+      <input id="email2" type="email" inputmode="email" autocomplete="username" autocapitalize="none">
+      <button id="b-send">Envoyer le lien par email</button>
+      <button class="link" id="b-back">Retour à la connexion</button>
+    </div>
+
+    <!-- Choisir un mot de passe (invitation ou récupération) -->
+    <div id="v-setpw" class="hidden">
+      <label for="pw1">Nouveau mot de passe (8 caractères minimum)</label>
+      <input id="pw1" type="password" autocomplete="new-password">
+      <label for="pw2">Confirmer le mot de passe</label>
+      <input id="pw2" type="password" autocomplete="new-password">
+      <button id="b-setpw">Enregistrer le mot de passe</button>
+    </div>
+
+    <!-- Accueil -->
+    <div id="v-home" class="hidden">
+      <p style="margin:0;font-size:22px;font-weight:700" id="hello"></p>
+      <span class="role" id="role"></span>
+      <p style="color:var(--muted);margin:16px 0 0">Vous êtes connecté. Le tableau de bord arrive à la prochaine étape.</p>
+      <button class="link" id="b-out">Se déconnecter</button>
+    </div>
+
+    <p class="msg" id="msg" role="status" aria-live="polite"></p>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+const SUPABASE_URL = "https://xboswxaneagyythquvym.supabase.co";
+const SUPABASE_KEY = "sb_publishable_QB2wa1kvY-CODrHwWDC6EQ_eSz3uk2f";
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $ = id => document.getElementById(id);
+const views = ["login", "forgot", "setpw", "home"];
+const ROLES = { membre: "Membre", administrateur: "Administrateur", super_administrateur: "Super-administrateur" };
+let settingPassword = /type=(invite|recovery)/.test(location.hash);
+
+function show(name) {
+  views.forEach(v => $("v-" + v).classList.toggle("hidden", v !== name));
+  $("sub").textContent = {
+    login: "Connectez-vous avec votre adresse email.",
+    forgot: "Nous vous envoyons un lien pour choisir un nouveau mot de passe.",
+    setpw: "Choisissez le mot de passe de votre compte.",
+    home: "Bienvenue."
+  }[name];
+  say("");
+}
+function say(text, kind) {
+  const m = $("msg");
+  m.textContent = text;
+  m.className = "msg" + (kind ? " " + kind : "");
+}
+function explain(error) {
+  const t = (error.message || "").toLowerCase();
+  if (t.includes("invalid login")) return "Email ou mot de passe incorrect.";
+  if (t.includes("not confirmed")) return "Cette adresse n’est pas encore confirmée. Ouvrez le lien reçu par email.";
+  if (t.includes("rate limit") || t.includes("too many")) return "Trop d’essais. Attendez quelques minutes, puis réessayez.";
+  if (t.includes("network") || t.includes("fetch")) return "Pas de connexion à Internet. Vérifiez votre réseau.";
+  if (t.includes("password")) return "Mot de passe refusé : choisissez-en un plus long ou plus complexe.";
+  return "Une erreur est survenue : " + error.message;
+}
+async function busy(btn, job) {
+  btn.disabled = true;
+  try { await job(); } finally { btn.disabled = false; }
+}
+
+async function showHome() {
+  const { data: { user } } = await db.auth.getUser();
+  if (!user) return show("login");
+  const { data, error } = await db.from("membres").select("nom, role").eq("auth_id", user.id).maybeSingle();
+  show("home");
+  if (error || !data) {
+    $("hello").textContent = user.email;
+    $("role").textContent = "Fiche membre introuvable";
+    say("Votre compte existe, mais aucune fiche membre n’y est reliée. Contactez l’administrateur.", "err");
+    return;
+  }
+  $("hello").textContent = "Bonjour, " + data.nom;
+  $("role").textContent = ROLES[data.role] || data.role;
+}
+
+$("b-login").onclick = () => busy($("b-login"), async () => {
+  const email = $("email").value.trim(), password = $("pw").value;
+  if (!email || !password) return say("Saisissez votre email et votre mot de passe.", "err");
+  say("Connexion en cours…");
+  const { error } = await db.auth.signInWithPassword({ email, password });
+  if (error) return say(explain(error), "err");
+  $("pw").value = "";
+  await showHome();
+});
+
+$("b-forgot").onclick = () => { $("email2").value = $("email").value; show("forgot"); };
+$("b-back").onclick = () => show("login");
+
+$("b-send").onclick = () => busy($("b-send"), async () => {
+  const email = $("email2").value.trim();
+  if (!email) return say("Saisissez votre adresse email.", "err");
+  const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo: location.href.split("#")[0] });
+  if (error) return say(explain(error), "err");
+  say("Si cette adresse a un compte, un lien vient d’être envoyé. Vérifiez aussi vos courriers indésirables.", "ok");
+});
+
+$("b-setpw").onclick = () => busy($("b-setpw"), async () => {
+  const a = $("pw1").value, b = $("pw2").value;
+  if (a.length < 8) return say("Le mot de passe doit contenir au moins 8 caractères.", "err");
+  if (a !== b) return say("Les deux mots de passe ne sont pas identiques.", "err");
+  const { error } = await db.auth.updateUser({ password: a });
+  if (error) return say(explain(error), "err");
+  settingPassword = false;
+  history.replaceState(null, "", location.pathname);
+  await showHome();
+  say("Mot de passe enregistré.", "ok");
+});
+
+$("b-out").onclick = async () => { await db.auth.signOut(); show("login"); };
+
+db.auth.onAuthStateChange(event => {
+  if (event === "PASSWORD_RECOVERY") { settingPassword = true; show("setpw"); }
+});
+
+(async () => {
+  const { data: { session } } = await db.auth.getSession();
+  if (settingPassword && session) return show("setpw");
+  if (session) return showHome();
+  show("login");
+})();
+</script>
+</body>
+</html>
