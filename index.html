@@ -58,6 +58,9 @@ h1,h2,p.sub,label,.msg,.note,.top,.who,.big,.dt,.stat,.card,#v-home,#d-who{text-
 .tabs{justify-content:center}
 .role{margin-left:auto;margin-right:auto}
 .top button{align-self:center}
+button.mini{width:auto;margin:6px 0 0;padding:7px 14px;font-size:14px;background:var(--card);color:var(--green);border:1.5px solid var(--green)}
+.row2{display:flex;gap:8px}.row2 button{margin-top:20px}
+button.ghost{background:var(--card);color:var(--green);border:1.5px solid var(--green)}
 </style>
 </head>
 <body>
@@ -127,7 +130,7 @@ h1,h2,p.sub,label,.msg,.note,.top,.who,.big,.dt,.stat,.card,#v-home,#d-who{text-
 
     <div id="t-ajout" class="hidden">
       <div class="card">
-        <h2>Nouvelle fiche membre</h2>
+        <h2 id="a-titre">Nouvelle fiche membre</h2>
         <label for="a-nom">Nom complet *</label>
         <input id="a-nom" autocomplete="off">
         <label for="a-tel">Téléphone (facultatif)</label>
@@ -148,7 +151,11 @@ h1,h2,p.sub,label,.msg,.note,.top,.who,.big,.dt,.stat,.card,#v-home,#d-who{text-
         <select id="a-parent"></select>
         <label for="a-solde">Solde de départ en francs (arriérés ou avance, facultatif)</label>
         <input id="a-solde" type="number" inputmode="numeric" value="0">
-        <button id="a-save">Enregistrer la fiche</button>
+        <div id="a-vital-box" class="hidden">
+          <label for="a-vital">Statut</label>
+          <select id="a-vital"><option value="vivant">Vivant</option><option value="decede">Décédé</option></select>
+        </div>
+        <div class="row2"><button id="a-save">Enregistrer la fiche</button><button id="a-cancel" class="ghost hidden">Annuler</button></div>
         <p class="note">Pour que ce membre puisse se connecter : dans Supabase, ouvrez Authentication, Users, puis Invite user, avec le même email.</p>
       </div>
     </div>
@@ -266,7 +273,7 @@ function tab(name) {
 async function loadAll() {
   const [c, m, k, cot] = await Promise.all([
     db.from("categories").select("id, nom, montant_mensuel").order("nom"),
-    db.from("membres").select("id, nom, telephone, email, fonction, categorie_id, role, statut_vital, parent_id, auth_id").order("nom"),
+    db.from("membres").select("id, nom, telephone, email, sexe, date_naissance, lieu_naissance, fonction, categorie_id, role, statut_vital, parent_id, auth_id").order("nom"),
     db.from("caisse").select("*").limit(1).maybeSingle(),
     db.from("cotisations").select("membre_id, statut")
   ]);
@@ -290,13 +297,15 @@ function renderMembres(retard) {
       <div>
         <div class="nm">${esc(x.nom)} ${x.statut_vital === "decede" ? '<span class="badge">décédé</span>' : ''}</div>
         <div class="dt">${esc(catNom(x.categorie_id))}${x.telephone ? " · " + esc(x.telephone) : ""}${x.auth_id ? "" : " · sans compte"}</div>
-        <span class="badge ${retard.has(x.id) ? "late" : "ok"}">${retard.has(x.id) ? "En retard" : "À jour"}</span>
+        ${x.statut_vital === "decede" ? "" : `<span class="badge ${retard.has(x.id) ? "late" : "ok"}">${retard.has(x.id) ? "En retard" : "À jour"}</span>`}
+        <div><button class="mini" data-edit="${x.id}">Modifier</button></div>
       </div>
       ${ME.role === "super_administrateur" && x.id !== ME.id ? `
       <select class="small" data-id="${x.id}" aria-label="Rôle de ${esc(x.nom)}">
         ${Object.entries(ROLES).map(([k, v]) => `<option value="${k}" ${k === x.role ? "selected" : ""}>${v}</option>`).join("")}
       </select>` : `<span class="badge">${ROLES[x.role]}</span>`}
     </div>`).join("") : "Aucun membre pour l’instant.";
+  document.querySelectorAll("#d-list [data-edit]").forEach(b => b.onclick = () => editMembre(b.dataset.edit));
   document.querySelectorAll("#d-list select").forEach(s => s.onchange = async () => {
     const { error } = await db.from("membres").update({ role: s.value }).eq("id", s.dataset.id);
     if (error) { dmsg("Changement refusé : " + error.message, "err"); loadAll(); }
@@ -304,9 +313,38 @@ function renderMembres(retard) {
   });
 }
 
+let EDIT_ID = null;
 function renderForm() {
   $("a-cat").innerHTML = '<option value="">— Choisir —</option>' + CATS.map(c => `<option value="${c.id}">${esc(c.nom)} (${fmt(c.montant_mensuel)}/mois)</option>`).join("");
-  $("a-parent").innerHTML = '<option value="">— Aucun (ancêtre ou inconnu) —</option>' + MEMBRES.map(m => `<option value="${m.id}">${esc(m.nom)}</option>`).join("");
+  $("a-parent").innerHTML = '<option value="">— Aucun (ancêtre ou inconnu) —</option>' + MEMBRES.filter(m => m.id !== EDIT_ID).map(m => `<option value="${m.id}">${esc(m.nom)}</option>`).join("");
+}
+
+function resetForm() {
+  EDIT_ID = null;
+  ["a-nom","a-tel","a-email","a-sexe","a-naiss","a-lieu","a-fonction","a-cat","a-parent"].forEach(i => $(i).value = "");
+  $("a-solde").value = 0; $("a-vital").value = "vivant";
+  $("a-titre").textContent = "Nouvelle fiche membre";
+  $("a-save").textContent = "Enregistrer la fiche";
+  $("a-cancel").classList.add("hidden");
+  $("a-vital-box").classList.add("hidden");
+  renderForm();
+}
+
+function editMembre(id) {
+  const m = MEMBRES.find(x => x.id === id);
+  if (!m) return;
+  EDIT_ID = id;
+  renderForm();
+  $("a-nom").value = m.nom || ""; $("a-tel").value = m.telephone || ""; $("a-email").value = m.email || "";
+  $("a-sexe").value = m.sexe || ""; $("a-naiss").value = m.date_naissance || ""; $("a-lieu").value = m.lieu_naissance || "";
+  $("a-fonction").value = m.fonction || ""; $("a-cat").value = m.categorie_id || ""; $("a-parent").value = m.parent_id || "";
+  $("a-vital").value = m.statut_vital === "decede" ? "decede" : "vivant";
+  $("a-titre").textContent = "Modifier : " + m.nom;
+  $("a-save").textContent = "Enregistrer les modifications";
+  $("a-cancel").classList.remove("hidden");
+  $("a-vital-box").classList.remove("hidden");
+  tab("ajout");
+  window.scrollTo(0, 0);
 }
 
 function renderCaisse() {
@@ -316,7 +354,7 @@ function renderCaisse() {
   $("c-new").value = "";
 }
 
-document.querySelectorAll("#d-tabs button").forEach(b => b.onclick = () => tab(b.dataset.t));
+document.querySelectorAll("#d-tabs button").forEach(b => b.onclick = () => { if (b.dataset.t === "ajout" && EDIT_ID) resetForm(); tab(b.dataset.t); });
 $("d-out").onclick = async () => { await db.auth.signOut(); ME = null; show("login"); };
 
 $("a-save").onclick = () => busy($("a-save"), async () => {
@@ -326,22 +364,29 @@ $("a-save").onclick = () => busy($("a-save"), async () => {
   const fiche = {
     nom, telephone: val("a-tel"), email: val("a-email"), sexe: val("a-sexe"),
     date_naissance: val("a-naiss"), lieu_naissance: val("a-lieu"), fonction: val("a-fonction"),
-    categorie_id: val("a-cat"), parent_id: val("a-parent"), solde_depart: parseInt($("a-solde").value, 10) || 0
+    categorie_id: val("a-cat"), parent_id: val("a-parent")
   };
-  const { error } = await db.from("membres").insert(fiche);
+  let error;
+  if (EDIT_ID) {
+    fiche.statut_vital = $("a-vital").value;
+    ({ error } = await db.from("membres").update(fiche).eq("id", EDIT_ID));
+  } else {
+    fiche.solde_depart = parseInt($("a-solde").value, 10) || 0;
+    ({ error } = await db.from("membres").insert(fiche));
+  }
   if (error) {
     const t = error.message.toLowerCase();
     if (t.includes("duplicate") && t.includes("email")) return dmsg("Cet email est déjà utilisé par un autre membre.", "err");
     if (t.includes("duplicate") && t.includes("telephone")) return dmsg("Ce numéro est déjà utilisé par un autre membre.", "err");
     return dmsg("Enregistrement refusé : " + error.message, "err");
   }
-  ["a-nom","a-tel","a-email","a-sexe","a-naiss","a-lieu","a-fonction","a-cat","a-parent"].forEach(i => $(i).value = "");
-  $("a-solde").value = 0;
-  dmsg("Fiche enregistrée.", "ok");
+  const modif = !!EDIT_ID;
+  resetForm();
   await loadAll();
   tab("membres");
-  dmsg("Fiche enregistrée.", "ok");
+  dmsg(modif ? "Fiche modifiée." : "Fiche enregistrée.", "ok");
 });
+$("a-cancel").onclick = () => { resetForm(); tab("membres"); };
 
 $("c-save").onclick = () => busy($("c-save"), async () => {
   const v = parseInt($("c-new").value, 10);
@@ -405,4 +450,4 @@ db.auth.onAuthStateChange(event => {
 })();
 </script>
 </body>
-</html>
+          </html>
