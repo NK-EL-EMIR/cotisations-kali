@@ -153,7 +153,7 @@ button.ghost{background:var(--card);color:var(--green);border:1.5px solid var(--
         <input id="a-solde" type="number" inputmode="numeric" value="0">
         <div id="a-vital-box" class="hidden">
           <label for="a-vital">Statut</label>
-          <select id="a-vital"><option value="vivant">Vivant</option><option value="decede">Décédé</option></select>
+          <select id="a-vital"><option value="vivant">Vivant</option><option value="decede">Décédé, qu’Allah lui fasse miséricorde</option></select>
         </div>
         <div class="row2"><button id="a-save">Enregistrer la fiche</button><button id="a-cancel" class="ghost hidden">Annuler</button></div>
         <p class="note">Pour que ce membre puisse se connecter : dans Supabase, ouvrez Authentication, Users, puis Invite user, avec le même email.</p>
@@ -295,7 +295,7 @@ function renderMembres(retard) {
   $("d-list").innerHTML = MEMBRES.length ? MEMBRES.map(x => `
     <div class="mbr">
       <div>
-        <div class="nm">${esc(x.nom)} ${x.statut_vital === "decede" ? '<span class="badge">décédé</span>' : ''}</div>
+        <div class="nm">${esc(x.nom)} ${x.statut_vital === "decede" ? '<span class="badge">Décédé, qu’Allah lui fasse miséricorde</span>' : ''}</div>
         <div class="dt">${esc(catNom(x.categorie_id))}${x.telephone ? " · " + esc(x.telephone) : ""}${x.auth_id ? "" : " · sans compte"}</div>
         ${x.statut_vital === "decede" ? "" : `<span class="badge ${retard.has(x.id) ? "late" : "ok"}">${retard.has(x.id) ? "En retard" : "À jour"}</span>`}
         <div><button class="mini" data-edit="${x.id}">Modifier</button></div>
@@ -450,4 +450,4 @@ db.auth.onAuthStateChange(event => {
 })();
 </script>
 </body>
-          </html>
+</html>
