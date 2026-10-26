@@ -312,7 +312,8 @@ function renderForm() {
 function renderCaisse() {
   $("c-courant").textContent = CAISSE ? fmt(CAISSE.solde_courant) : "Pas encore saisi";
   $("c-init").textContent = CAISSE ? fmt(CAISSE.solde_initial) : "—";
-  $("c-new").value = CAISSE ? CAISSE.solde_initial : "";
+  $("c-new").placeholder = CAISSE ? "Actuel : " + CAISSE.solde_initial : "Montant en francs";
+  $("c-new").value = "";
 }
 
 document.querySelectorAll("#d-tabs button").forEach(b => b.onclick = () => tab(b.dataset.t));
