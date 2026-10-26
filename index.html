@@ -3,19 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Cotisations famille Kali</title>
+<title>Cotisation famille Kali Allamine</title>
 <style>
-:root{--bg:#F1F5F2;--card:#FFFFFF;--ink:#12261C;--muted:#506258;--line:#C9D6CE;--green:#0F5A3C;--green-ink:#FFFFFF;--err:#A32A1F;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0E1A14;--card:#16261E;--ink:#E7F0EA;--muted:#9DB1A5;--line:#2C4237;--green:#3FAE7B;--green-ink:#08150E;--err:#FF8F82;color-scheme:dark}}
+:root{--bg:#FFFFFF;--card:#FFFFFF;--ink:#0F1F3D;--muted:#52627F;--line:#DCE6F5;--green:#1558C0;--green-ink:#FFFFFF;--err:#C0281C;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--ink);font:17px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;padding:20px}
 main{width:100%;max-width:400px}
-h1{font:700 30px/1.15 Georgia,"Times New Roman",serif;margin:0 0 6px}
+h1{font:700 30px/1.15 Georgia,"Times New Roman",serif;margin:0 0 6px;color:var(--green)}
 p.sub{margin:0 0 24px;color:var(--muted)}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;box-shadow:0 2px 10px rgba(21,88,192,.08)}
 label{display:block;font-weight:600;margin:14px 0 6px}
-input{width:100%;font:inherit;padding:13px 14px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+input{width:100%;font:inherit;padding:13px 14px;border:1.5px solid var(--line);border-radius:10px;background:#F7FAFE;color:var(--ink)}
 input:focus{outline:3px solid var(--green);outline-offset:1px;border-color:var(--green)}
 button{width:100%;font:inherit;font-weight:700;margin-top:20px;padding:14px;border:0;border-radius:10px;background:var(--green);color:var(--green-ink);cursor:pointer}
 button:disabled{opacity:.6}
@@ -25,11 +24,45 @@ button.link{background:none;color:var(--green);margin-top:14px;padding:8px;font-
 .msg.ok{color:var(--green)}
 .hidden{display:none}
 .role{display:inline-block;margin:4px 0 0;padding:3px 10px;border:1px solid var(--line);border-radius:999px;font-size:14px;color:var(--muted)}
+
+body.dash{display:block;padding:16px}
+body.dash main{max-width:760px;margin:0 auto}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.top .who{font-weight:700;font-size:18px}
+.top button{width:auto;margin:0;padding:8px 14px;font-size:15px}
+.tabs{display:flex;gap:6px;margin:0 0 14px;overflow-x:auto}
+.tabs button{width:auto;margin:0;padding:10px 14px;background:var(--card);color:var(--ink);border:1.5px solid var(--line);white-space:nowrap}
+.tabs button.on{background:var(--green);color:var(--green-ink);border-color:var(--green)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center;box-shadow:0 2px 8px rgba(21,88,192,.06)}.stat b{color:var(--green)}
+.stat b{display:block;font-size:24px}
+.stat span{font-size:13px;color:var(--muted)}
+.mbr{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid var(--line)}
+.mbr:first-child{border-top:0}
+.mbr .nm{font-weight:700}
+.mbr .dt{font-size:14px;color:var(--muted)}
+.badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:13px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.ok{border-color:var(--green);color:var(--green)}
+.badge.late{border-color:var(--err);color:var(--err)}
+select,textarea{width:100%;font:inherit;padding:13px 14px;border:1.5px solid var(--line);border-radius:10px;background:#F7FAFE;color:var(--ink)}
+select:focus{outline:3px solid var(--green);outline-offset:1px;border-color:var(--green)}
+select.small{width:auto;padding:8px 10px;font-size:15px}
+h2{font:700 22px/1.2 Georgia,serif;margin:0 0 10px;color:var(--green)}
+.note{font-size:14px;color:var(--muted);margin:10px 0 0}
+.big{font:700 34px/1.1 Georgia,serif;margin:6px 0 4px}
+
+h1,h2,p.sub,label,.msg,.note,.top,.who,.big,.dt,.stat,.card,#v-home,#d-who{text-align:center}
+.top{flex-direction:column}
+.mbr{flex-direction:column;text-align:center}
+.mbr select.small{margin-top:6px}
+.tabs{justify-content:center}
+.role{margin-left:auto;margin-right:auto}
+.top button{align-self:center}
 </style>
 </head>
 <body>
 <main>
-  <h1>Cotisations famille KALI ALLAMINE</h1>
+  <h1>Cotisation famille<br>Kali Allamine</h1>
   <p class="sub" id="sub">Connectez-vous avec votre adresse email.</p>
 
   <div class="card">
@@ -60,15 +93,82 @@ button.link{background:none;color:var(--green);margin-top:14px;padding:8px;font-
       <button id="b-setpw">Enregistrer le mot de passe</button>
     </div>
 
-    <!-- Accueil -->
+    <!-- Accueil simple (membre / admin) -->
     <div id="v-home" class="hidden">
       <p style="margin:0;font-size:22px;font-weight:700" id="hello"></p>
       <span class="role" id="role"></span>
-      <p style="color:var(--muted);margin:16px 0 0">Vous êtes connecté. Le tableau de bord arrive à la prochaine étape.</p>
+      <p style="color:var(--muted);margin:16px 0 0" id="homeNote">Vous êtes connecté.</p>
       <button class="link" id="b-out">Se déconnecter</button>
     </div>
 
     <p class="msg" id="msg" role="status" aria-live="polite"></p>
+  </div>
+
+  <!-- TABLEAU DE BORD ADMIN / SUPER-ADMIN -->
+  <div id="v-dash" class="hidden">
+    <div class="top">
+      <div><div class="who" id="d-who"></div><span class="role" id="d-role"></span></div>
+      <button id="d-out">Quitter</button>
+    </div>
+    <div class="tabs" id="d-tabs">
+      <button data-t="membres" class="on">Membres</button>
+      <button data-t="ajout">Ajouter</button>
+      <button data-t="caisse">Caisse</button>
+    </div>
+
+    <div id="t-membres">
+      <div class="stats">
+        <div class="stat"><b id="s-total">0</b><span>Membres</span></div>
+        <div class="stat"><b id="s-ok">0</b><span>À jour</span></div>
+        <div class="stat"><b id="s-late">0</b><span>En retard</span></div>
+      </div>
+      <div class="card"><div id="d-list">Chargement…</div></div>
+    </div>
+
+    <div id="t-ajout" class="hidden">
+      <div class="card">
+        <h2>Nouvelle fiche membre</h2>
+        <label for="a-nom">Nom complet *</label>
+        <input id="a-nom" autocomplete="off">
+        <label for="a-tel">Téléphone (facultatif)</label>
+        <input id="a-tel" type="tel" inputmode="tel" autocomplete="off">
+        <label for="a-email">Email (facultatif, sert à la connexion)</label>
+        <input id="a-email" type="email" inputmode="email" autocapitalize="none" autocomplete="off">
+        <label for="a-sexe">Sexe</label>
+        <select id="a-sexe"><option value="">—</option><option value="M">Masculin</option><option value="F">Féminin</option></select>
+        <label for="a-naiss">Date de naissance (facultatif)</label>
+        <input id="a-naiss" type="date">
+        <label for="a-lieu">Lieu de naissance (facultatif)</label>
+        <input id="a-lieu" autocomplete="off">
+        <label for="a-fonction">Fonction / métier (facultatif)</label>
+        <input id="a-fonction" autocomplete="off">
+        <label for="a-cat">Catégorie</label>
+        <select id="a-cat"></select>
+        <label for="a-parent">Parent (pour l’arbre généalogique)</label>
+        <select id="a-parent"></select>
+        <label for="a-solde">Solde de départ en francs (arriérés ou avance, facultatif)</label>
+        <input id="a-solde" type="number" inputmode="numeric" value="0">
+        <button id="a-save">Enregistrer la fiche</button>
+        <p class="note">Pour que ce membre puisse se connecter : dans Supabase, ouvrez Authentication, Users, puis Invite user, avec le même email.</p>
+      </div>
+    </div>
+
+    <div id="t-caisse" class="hidden">
+      <div class="card">
+        <h2>Caisse familiale</h2>
+        <span class="dt" style="color:var(--muted)">Solde courant</span>
+        <div class="big" id="c-courant">—</div>
+        <span class="dt" style="color:var(--muted)">Solde initial : <span id="c-init">—</span></span>
+        <div id="c-edit">
+          <label for="c-new">Définir le solde initial (francs)</label>
+          <input id="c-new" type="number" inputmode="numeric">
+          <button id="c-save">Enregistrer le solde initial</button>
+          <p class="note">Réservé au super-administrateur. Le solde courant est recalculé : nouveau solde initial plus les mouvements déjà enregistrés.</p>
+        </div>
+      </div>
+    </div>
+
+    <p class="msg" id="d-msg" role="status" aria-live="polite"></p>
   </div>
 </main>
 
@@ -80,11 +180,18 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const $ = id => document.getElementById(id);
 const views = ["login", "forgot", "setpw", "home"];
+let ME = null, CATS = [], MEMBRES = [], CAISSE = null;
+const fmt = n => new Intl.NumberFormat("fr-FR").format(n || 0) + " FCFA";
 const ROLES = { membre: "Membre", administrateur: "Administrateur", super_administrateur: "Super-administrateur" };
 let settingPassword = /type=(invite|recovery)/.test(location.hash);
 
 function show(name) {
   views.forEach(v => $("v-" + v).classList.toggle("hidden", v !== name));
+  $("v-dash").classList.add("hidden");
+  document.body.classList.remove("dash");
+  document.querySelector("main > .card").classList.remove("hidden");
+  document.querySelector("main > h1").classList.remove("hidden");
+  $("sub").classList.remove("hidden");
   $("sub").textContent = {
     login: "Connectez-vous avec votre adresse email.",
     forgot: "Nous vous envoyons un lien pour choisir un nouveau mot de passe.",
@@ -115,17 +222,140 @@ async function busy(btn, job) {
 async function showHome() {
   const { data: { user } } = await db.auth.getUser();
   if (!user) return show("login");
-  const { data, error } = await db.from("membres").select("nom, role").eq("auth_id", user.id).maybeSingle();
-  show("home");
+  const { data, error } = await db.from("membres").select("id, nom, role").eq("auth_id", user.id).maybeSingle();
   if (error || !data) {
+    show("home");
     $("hello").textContent = user.email;
     $("role").textContent = "Fiche membre introuvable";
     say("Votre compte existe, mais aucune fiche membre n’y est reliée. Contactez l’administrateur.", "err");
     return;
   }
+  ME = data;
+  if (data.role === "administrateur" || data.role === "super_administrateur") return showDash();
+  show("home");
   $("hello").textContent = "Bonjour, " + data.nom;
   $("role").textContent = ROLES[data.role] || data.role;
+  $("homeNote").textContent = "Vous êtes connecté. Votre tableau de bord de membre arrive à la prochaine étape.";
 }
+
+/* ---------- TABLEAU DE BORD ---------- */
+function dmsg(text, kind) { const m = $("d-msg"); m.textContent = text; m.className = "msg" + (kind ? " " + kind : ""); }
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function showDash() {
+  views.forEach(v => $("v-" + v).classList.add("hidden"));
+  document.querySelector("main > .card").classList.add("hidden");
+  document.querySelector("main > h1").classList.add("hidden");
+  $("sub").classList.add("hidden");
+  document.body.classList.add("dash");
+  $("v-dash").classList.remove("hidden");
+  $("d-who").textContent = ME.nom;
+  $("d-role").textContent = ROLES[ME.role];
+  $("c-edit").classList.toggle("hidden", ME.role !== "super_administrateur");
+  dmsg("");
+  tab("membres");
+  loadAll();
+}
+
+function tab(name) {
+  ["membres", "ajout", "caisse"].forEach(t => $("t-" + t).classList.toggle("hidden", t !== name));
+  document.querySelectorAll("#d-tabs button").forEach(b => b.classList.toggle("on", b.dataset.t === name));
+  dmsg("");
+}
+
+async function loadAll() {
+  const [c, m, k, cot] = await Promise.all([
+    db.from("categories").select("id, nom, montant_mensuel").order("nom"),
+    db.from("membres").select("id, nom, telephone, email, fonction, categorie_id, role, statut_vital, parent_id, auth_id").order("nom"),
+    db.from("caisse").select("*").limit(1).maybeSingle(),
+    db.from("cotisations").select("membre_id, statut")
+  ]);
+  if (c.error || m.error) return dmsg("Impossible de charger les données : " + (c.error || m.error).message, "err");
+  CATS = c.data; MEMBRES = m.data; CAISSE = k.data;
+  const retard = new Set((cot.data || []).filter(x => x.statut === "en_retard").map(x => x.membre_id));
+  renderMembres(retard);
+  renderForm();
+  renderCaisse();
+}
+
+function renderMembres(retard) {
+  const vivants = MEMBRES.filter(x => x.statut_vital !== "decede");
+  const late = vivants.filter(x => retard.has(x.id)).length;
+  $("s-total").textContent = vivants.length;
+  $("s-late").textContent = late;
+  $("s-ok").textContent = vivants.length - late;
+  const catNom = id => (CATS.find(c => c.id === id) || {}).nom || "Sans catégorie";
+  $("d-list").innerHTML = MEMBRES.length ? MEMBRES.map(x => `
+    <div class="mbr">
+      <div>
+        <div class="nm">${esc(x.nom)} ${x.statut_vital === "decede" ? '<span class="badge">décédé</span>' : ''}</div>
+        <div class="dt">${esc(catNom(x.categorie_id))}${x.telephone ? " · " + esc(x.telephone) : ""}${x.auth_id ? "" : " · sans compte"}</div>
+        <span class="badge ${retard.has(x.id) ? "late" : "ok"}">${retard.has(x.id) ? "En retard" : "À jour"}</span>
+      </div>
+      ${ME.role === "super_administrateur" && x.id !== ME.id ? `
+      <select class="small" data-id="${x.id}" aria-label="Rôle de ${esc(x.nom)}">
+        ${Object.entries(ROLES).map(([k, v]) => `<option value="${k}" ${k === x.role ? "selected" : ""}>${v}</option>`).join("")}
+      </select>` : `<span class="badge">${ROLES[x.role]}</span>`}
+    </div>`).join("") : "Aucun membre pour l’instant.";
+  document.querySelectorAll("#d-list select").forEach(s => s.onchange = async () => {
+    const { error } = await db.from("membres").update({ role: s.value }).eq("id", s.dataset.id);
+    if (error) { dmsg("Changement refusé : " + error.message, "err"); loadAll(); }
+    else dmsg("Rôle mis à jour.", "ok");
+  });
+}
+
+function renderForm() {
+  $("a-cat").innerHTML = '<option value="">— Choisir —</option>' + CATS.map(c => `<option value="${c.id}">${esc(c.nom)} (${fmt(c.montant_mensuel)}/mois)</option>`).join("");
+  $("a-parent").innerHTML = '<option value="">— Aucun (ancêtre ou inconnu) —</option>' + MEMBRES.map(m => `<option value="${m.id}">${esc(m.nom)}</option>`).join("");
+}
+
+function renderCaisse() {
+  $("c-courant").textContent = CAISSE ? fmt(CAISSE.solde_courant) : "Pas encore saisi";
+  $("c-init").textContent = CAISSE ? fmt(CAISSE.solde_initial) : "—";
+  $("c-new").value = CAISSE ? CAISSE.solde_initial : "";
+}
+
+document.querySelectorAll("#d-tabs button").forEach(b => b.onclick = () => tab(b.dataset.t));
+$("d-out").onclick = async () => { await db.auth.signOut(); ME = null; show("login"); };
+
+$("a-save").onclick = () => busy($("a-save"), async () => {
+  const nom = $("a-nom").value.trim();
+  if (!nom) return dmsg("Le nom est obligatoire.", "err");
+  const val = id => $(id).value.trim() || null;
+  const fiche = {
+    nom, telephone: val("a-tel"), email: val("a-email"), sexe: val("a-sexe"),
+    date_naissance: val("a-naiss"), lieu_naissance: val("a-lieu"), fonction: val("a-fonction"),
+    categorie_id: val("a-cat"), parent_id: val("a-parent"), solde_depart: parseInt($("a-solde").value, 10) || 0
+  };
+  const { error } = await db.from("membres").insert(fiche);
+  if (error) {
+    const t = error.message.toLowerCase();
+    if (t.includes("duplicate") && t.includes("email")) return dmsg("Cet email est déjà utilisé par un autre membre.", "err");
+    if (t.includes("duplicate") && t.includes("telephone")) return dmsg("Ce numéro est déjà utilisé par un autre membre.", "err");
+    return dmsg("Enregistrement refusé : " + error.message, "err");
+  }
+  ["a-nom","a-tel","a-email","a-sexe","a-naiss","a-lieu","a-fonction","a-cat","a-parent"].forEach(i => $(i).value = "");
+  $("a-solde").value = 0;
+  dmsg("Fiche enregistrée.", "ok");
+  await loadAll();
+  tab("membres");
+  dmsg("Fiche enregistrée.", "ok");
+});
+
+$("c-save").onclick = () => busy($("c-save"), async () => {
+  const v = parseInt($("c-new").value, 10);
+  if (isNaN(v) || v < 0) return dmsg("Saisissez un montant valide.", "err");
+  let error;
+  if (CAISSE) {
+    const delta = v - CAISSE.solde_initial;
+    ({ error } = await db.from("caisse").update({ solde_initial: v, solde_courant: CAISSE.solde_courant + delta, updated_at: new Date().toISOString() }).eq("id", CAISSE.id));
+  } else {
+    ({ error } = await db.from("caisse").insert({ solde_initial: v, solde_courant: v }));
+  }
+  if (error) return dmsg("Enregistrement refusé : " + error.message, "err");
+  dmsg("Solde initial enregistré.", "ok");
+  await loadAll();
+});
 
 $("b-login").onclick = () => busy($("b-login"), async () => {
   const email = $("email").value.trim(), password = $("pw").value;
