@@ -60,6 +60,22 @@ h1,h2,p.sub,label,.msg,.note,.top,.who,.big,.dt,.stat,.card,#v-home,#d-who{text-
 .top button{align-self:center}
 button.mini{width:auto;margin:6px 0 0;padding:7px 14px;font-size:14px;background:var(--card);color:var(--green);border:1.5px solid var(--green)}
 .row2{display:flex;gap:8px}.row2 button{margin-top:20px}
+
+.seg{display:flex;gap:0;margin:0 0 14px;border:1.5px solid var(--green);border-radius:10px;overflow:hidden}
+.seg button{margin:0;border-radius:0;background:var(--card);color:var(--green);padding:10px}
+.seg button.on{background:var(--green);color:var(--green-ink)}
+.tr{list-style:none;margin:0;padding:0}
+.tr ul{list-style:none;margin:0;padding:0 0 0 18px;border-left:2px solid var(--line)}
+.tr li{margin:6px 0;text-align:left}
+.tr .nd{display:inline-block;padding:7px 12px;border:1.5px solid var(--line);border-radius:10px;background:#F7FAFE;font-weight:600}
+.tr .nd.dc{border-color:var(--muted)}
+.tr .nd small{display:block;font-weight:400;color:var(--muted);font-size:13px}
+.tr .tg{cursor:pointer;color:var(--green);font-weight:700;margin-right:6px;user-select:none}
+.tr li.closed>ul{display:none}
+.dess{overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fff;max-height:70vh}
+.dess svg{display:block}
+.dess text{font:600 13px system-ui,sans-serif;fill:#0F1F3D}
+.dess text.sm{font:400 11px system-ui,sans-serif;fill:#52627F}
 button.ghost{background:var(--card);color:var(--green);border:1.5px solid var(--green)}
 </style>
 </head>
@@ -101,6 +117,11 @@ button.ghost{background:var(--card);color:var(--green);border:1.5px solid var(--
       <p style="margin:0;font-size:22px;font-weight:700" id="hello"></p>
       <span class="role" id="role"></span>
       <p style="color:var(--muted);margin:16px 0 0" id="homeNote">Vous êtes connecté.</p>
+      <div id="h-arbre" class="hidden" style="margin-top:18px">
+        <h2>Arbre généalogique</h2>
+        <div class="seg" id="h-seg"><button data-m="liste" class="on">Liste</button><button data-m="dessin">Dessin</button></div>
+        <div id="h-out"></div>
+      </div>
       <button class="link" id="b-out">Se déconnecter</button>
     </div>
 
@@ -116,6 +137,7 @@ button.ghost{background:var(--card);color:var(--green);border:1.5px solid var(--
     <div class="tabs" id="d-tabs">
       <button data-t="membres" class="on">Membres</button>
       <button data-t="ajout">Ajouter</button>
+      <button data-t="arbre">Arbre</button>
       <button data-t="caisse">Caisse</button>
     </div>
 
@@ -153,10 +175,19 @@ button.ghost{background:var(--card);color:var(--green);border:1.5px solid var(--
         <input id="a-solde" type="number" inputmode="numeric" value="0">
         <div id="a-vital-box" class="hidden">
           <label for="a-vital">Statut</label>
-          <select id="a-vital"><option value="vivant">Vivant</option><option value="decede">Décédé, qu’Allah lui fasse miséricorde</option></select>
+          <select id="a-vital"><option value="vivant">Vivant</option><option value="decede">رحمه الله</option></select>
         </div>
         <div class="row2"><button id="a-save">Enregistrer la fiche</button><button id="a-cancel" class="ghost hidden">Annuler</button></div>
         <p class="note">Pour que ce membre puisse se connecter : dans Supabase, ouvrez Authentication, Users, puis Invite user, avec le même email.</p>
+      </div>
+    </div>
+
+    <div id="t-arbre" class="hidden">
+      <div class="card">
+        <h2>Arbre généalogique</h2>
+        <div class="seg" id="ar-seg"><button data-m="liste" class="on">Liste</button><button data-m="dessin">Dessin</button></div>
+        <div id="ar-out"></div>
+        <p class="note">En mode Liste, touchez le signe + ou − pour déplier ou replier une branche.</p>
       </div>
     </div>
 
@@ -205,6 +236,7 @@ function show(name) {
     setpw: "Choisissez le mot de passe de votre compte.",
     home: "Bienvenue."
   }[name];
+  if (name !== "home") $("h-arbre").classList.add("hidden");
   say("");
 }
 function say(text, kind) {
@@ -243,6 +275,8 @@ async function showHome() {
   $("hello").textContent = "Bonjour, " + data.nom;
   $("role").textContent = ROLES[data.role] || data.role;
   $("homeNote").textContent = "Vous êtes connecté. Votre tableau de bord de membre arrive à la prochaine étape.";
+  $("h-arbre").classList.remove("hidden");
+  renderArbre("h-out", "h-seg");
 }
 
 /* ---------- TABLEAU DE BORD ---------- */
@@ -265,8 +299,9 @@ function showDash() {
 }
 
 function tab(name) {
-  ["membres", "ajout", "caisse"].forEach(t => $("t-" + t).classList.toggle("hidden", t !== name));
+  ["membres", "ajout", "arbre", "caisse"].forEach(t => $("t-" + t).classList.toggle("hidden", t !== name));
   document.querySelectorAll("#d-tabs button").forEach(b => b.classList.toggle("on", b.dataset.t === name));
+  if (name === "arbre") renderArbre("ar-out", "ar-seg");
   dmsg("");
 }
 
@@ -295,7 +330,7 @@ function renderMembres(retard) {
   $("d-list").innerHTML = MEMBRES.length ? MEMBRES.map(x => `
     <div class="mbr">
       <div>
-        <div class="nm">${esc(x.nom)} ${x.statut_vital === "decede" ? '<span class="badge">Décédé, qu’Allah lui fasse miséricorde</span>' : ''}</div>
+        <div class="nm">${esc(x.nom)} ${x.statut_vital === "decede" ? '<span class="badge" dir="rtl">رحمه الله</span>' : ''}</div>
         <div class="dt">${esc(catNom(x.categorie_id))}${x.telephone ? " · " + esc(x.telephone) : ""}${x.auth_id ? "" : " · sans compte"}</div>
         ${x.statut_vital === "decede" ? "" : `<span class="badge ${retard.has(x.id) ? "late" : "ok"}">${retard.has(x.id) ? "En retard" : "À jour"}</span>`}
         <div><button class="mini" data-edit="${x.id}">Modifier</button></div>
@@ -311,6 +346,67 @@ function renderMembres(retard) {
     if (error) { dmsg("Changement refusé : " + error.message, "err"); loadAll(); }
     else dmsg("Rôle mis à jour.", "ok");
   });
+}
+
+
+/* ---------- ARBRE GÉNÉALOGIQUE ---------- */
+const DECES = "رحمه الله";
+let ARBRE_MODE = localStorage.getItem("arbreMode") || "liste";
+function construireArbre(list) {
+  const ids = new Set(list.map(m => m.id));
+  const enfants = {};
+  list.forEach(m => { const p = (m.parent_id && ids.has(m.parent_id)) ? m.parent_id : "_racine"; (enfants[p] = enfants[p] || []).push(m); });
+  Object.values(enfants).forEach(a => a.sort((x, y) => (x.nom || "").localeCompare(y.nom || "", "fr")));
+  return enfants;
+}
+function arbreListeHTML(enfants, pid) {
+  const a = enfants[pid] || [];
+  if (!a.length) return "";
+  return "<ul" + (pid === "_racine" ? ' class="tr"' : "") + ">" + a.map(m => {
+    const sub = arbreListeHTML(enfants, m.id);
+    const dc = m.statut_vital === "decede";
+    return `<li>${sub ? '<span class="tg">−</span>' : ""}<span class="nd${dc ? " dc" : ""}">${esc(m.nom)}${dc ? "<small dir=\"rtl\">" + DECES + "</small>" : ""}</span>${sub}</li>`;
+  }).join("") + "</ul>";
+}
+function arbreDessinSVG(enfants) {
+  const W = 150, H = 46, GX = 16, GY = 34;
+  let nextX = 0, maxD = 0; const pos = {}, links = [];
+  function place(m, d) {
+    maxD = Math.max(maxD, d);
+    const kids = enfants[m.id] || [];
+    let x;
+    if (!kids.length) { x = nextX; nextX += W + GX; }
+    else { kids.forEach(k => place(k, d + 1)); x = (pos[kids[0].id].x + pos[kids[kids.length - 1].id].x) / 2; kids.forEach(k => links.push([m.id, k.id])); }
+    pos[m.id] = { x, y: d * (H + GY), m };
+  }
+  (enfants["_racine"] || []).forEach(r => place(r, 0));
+  const w = Math.max(nextX, W), h = (maxD + 1) * (H + GY);
+  let g = "";
+  links.forEach(([a, b]) => {
+    const A = pos[a], B = pos[b], x1 = A.x + W / 2, y1 = A.y + H, x2 = B.x + W / 2, y2 = B.y, my = (y1 + y2) / 2;
+    g += `<path d="M${x1} ${y1} V${my} H${x2} V${y2}" fill="none" stroke="#9DB6DE" stroke-width="2"/>`;
+  });
+  Object.values(pos).forEach(({ x, y, m }) => {
+    const dc = m.statut_vital === "decede", nom = m.nom.length > 20 ? m.nom.slice(0, 19) + "…" : m.nom;
+    g += `<rect x="${x}" y="${y}" width="${W}" height="${H}" rx="9" fill="${dc ? "#EEF1F6" : "#F7FAFE"}" stroke="${dc ? "#52627F" : "#1558C0"}" stroke-width="1.5"/>`;
+    g += `<text x="${x + W / 2}" y="${y + (dc ? 19 : 28)}" text-anchor="middle">${esc(nom)}</text>`;
+    if (dc) g += `<text class="sm" x="${x + W / 2}" y="${y + 35}" text-anchor="middle" direction="rtl">رحمه الله</text>`;
+  });
+  return `<div class="dess"><svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${g}</svg></div>`;
+}
+async function renderArbre(outId, segId) {
+  const out = $(outId), seg = $(segId);
+  seg.querySelectorAll("button").forEach(b => { b.classList.toggle("on", b.dataset.m === ARBRE_MODE); b.onclick = () => { ARBRE_MODE = b.dataset.m; localStorage.setItem("arbreMode", ARBRE_MODE); renderArbre(outId, segId); }; });
+  out.textContent = "Chargement…";
+  const { data, error } = await db.from("membres").select("id, nom, parent_id, statut_vital").order("nom");
+  if (error) { out.textContent = "Impossible de charger l’arbre : " + error.message; return; }
+  if (!data.length) { out.textContent = "Aucun membre pour l’instant."; return; }
+  const enfants = construireArbre(data);
+  if (ARBRE_MODE === "dessin") out.innerHTML = arbreDessinSVG(enfants);
+  else {
+    out.innerHTML = arbreListeHTML(enfants, "_racine");
+    out.querySelectorAll(".tg").forEach(t => t.onclick = () => { const li = t.closest("li"); li.classList.toggle("closed"); t.textContent = li.classList.contains("closed") ? "+" : "−"; });
+  }
 }
 
 let EDIT_ID = null;
