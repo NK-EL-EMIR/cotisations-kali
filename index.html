@@ -76,6 +76,15 @@ button.mini{width:auto;margin:6px 0 0;padding:7px 14px;font-size:14px;background
 .dess svg{display:block}
 .dess text{font:600 13px system-ui,sans-serif;fill:#0F1F3D}
 .dess text.sm{font:400 11px system-ui,sans-serif;fill:#52627F}
+
+.ligne{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--line);text-align:left}
+.ligne:first-child{border-top:0}
+.ligne .d{color:var(--muted);font-size:14px}
+.ok-t{color:var(--green);font-weight:700}.late-t{color:var(--err);font-weight:700}
+.bigstat{border-radius:14px;padding:16px;margin:14px 0;border:2px solid var(--green);text-align:center}
+.bigstat.late{border-color:var(--err)}
+.bigstat b{display:block;font:700 28px/1.15 Georgia,serif}
+.bigstat.late b{color:var(--err)}.bigstat.ok b{color:var(--green)}
 button.ghost{background:var(--card);color:var(--green);border:1.5px solid var(--green)}
 </style>
 </head>
@@ -117,6 +126,13 @@ button.ghost{background:var(--card);color:var(--green);border:1.5px solid var(--
       <p style="margin:0;font-size:22px;font-weight:700" id="hello"></p>
       <span class="role" id="role"></span>
       <p style="color:var(--muted);margin:16px 0 0" id="homeNote">Vous êtes connecté.</p>
+      <div id="h-cotis" class="hidden">
+        <div id="h-statut" class="bigstat"></div>
+        <h2>Mes paiements</h2>
+        <div id="h-histo"></div>
+        <h2 style="margin-top:18px">Caisse familiale</h2>
+        <div id="h-caisse" class="big"></div>
+      </div>
       <div id="h-arbre" class="hidden" style="margin-top:18px">
         <h2>Arbre généalogique</h2>
         <div class="seg" id="h-seg"><button data-m="liste" class="on">Liste</button><button data-m="dessin">Dessin</button></div>
@@ -137,6 +153,7 @@ button.ghost{background:var(--card);color:var(--green);border:1.5px solid var(--
     <div class="tabs" id="d-tabs">
       <button data-t="membres" class="on">Membres</button>
       <button data-t="ajout">Ajouter</button>
+      <button data-t="cotis">Cotisations</button>
       <button data-t="arbre">Arbre</button>
       <button data-t="caisse">Caisse</button>
     </div>
@@ -179,6 +196,34 @@ button.ghost{background:var(--card);color:var(--green);border:1.5px solid var(--
         </div>
         <div class="row2"><button id="a-save">Enregistrer la fiche</button><button id="a-cancel" class="ghost hidden">Annuler</button></div>
         <p class="note">Pour que ce membre puisse se connecter : dans Supabase, ouvrez Authentication, Users, puis Invite user, avec le même email.</p>
+      </div>
+    </div>
+
+    <div id="t-cotis" class="hidden">
+      <div class="card">
+        <h2>Cotisations</h2>
+        <label for="k-mois">Mois à ouvrir</label>
+        <input id="k-mois" type="month">
+        <button id="k-ouvrir">Créer ce mois pour tous les membres vivants</button>
+        <p class="note">Crée une ligne par membre avec le montant de sa catégorie. Sans danger si on le refait : les lignes existantes ne sont pas touchées.</p>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h2>Enregistrer un paiement</h2>
+        <label for="k-membre">Membre</label>
+        <select id="k-membre"></select>
+        <div id="k-info" class="note"></div>
+        <label for="k-nb">Nombre de mois réglés</label>
+        <input id="k-nb" type="number" inputmode="numeric" min="1" value="1">
+        <label for="k-moyen">Moyen de paiement</label>
+        <select id="k-moyen">
+          <option value="especes">Espèces</option>
+          <option value="orange_money">Orange Money</option>
+          <option value="mtn_mobile_money">MTN Mobile Money</option>
+          <option value="carte_bancaire">Carte bancaire</option>
+          <option value="virement_international">Virement international</option>
+        </select>
+        <button id="k-payer">Enregistrer le paiement</button>
+        <p class="note">Les mois en retard les plus anciens sont réglés en premier. Si le membre paie plus de mois qu’il n’en doit, les mois suivants sont créés directement comme payés.</p>
       </div>
     </div>
 
@@ -236,7 +281,7 @@ function show(name) {
     setpw: "Choisissez le mot de passe de votre compte.",
     home: "Bienvenue."
   }[name];
-  if (name !== "home") $("h-arbre").classList.add("hidden");
+  if (name !== "home") { $("h-arbre").classList.add("hidden"); $("h-cotis").classList.add("hidden"); }
   say("");
 }
 function say(text, kind) {
@@ -275,6 +320,8 @@ async function showHome() {
   $("hello").textContent = "Bonjour, " + data.nom;
   $("role").textContent = ROLES[data.role] || data.role;
   $("homeNote").textContent = "Vous êtes connecté. Votre tableau de bord de membre arrive à la prochaine étape.";
+  $("h-cotis").classList.remove("hidden");
+  renderMonEspace(data.id);
   $("h-arbre").classList.remove("hidden");
   renderArbre("h-out", "h-seg");
 }
@@ -299,9 +346,10 @@ function showDash() {
 }
 
 function tab(name) {
-  ["membres", "ajout", "arbre", "caisse"].forEach(t => $("t-" + t).classList.toggle("hidden", t !== name));
+  ["membres", "ajout", "cotis", "arbre", "caisse"].forEach(t => $("t-" + t).classList.toggle("hidden", t !== name));
   document.querySelectorAll("#d-tabs button").forEach(b => b.classList.toggle("on", b.dataset.t === name));
   if (name === "arbre") renderArbre("ar-out", "ar-seg");
+  if (name === "cotis") renderCotis();
   dmsg("");
 }
 
@@ -407,6 +455,99 @@ async function renderArbre(outId, segId) {
     out.innerHTML = arbreListeHTML(enfants, "_racine");
     out.querySelectorAll(".tg").forEach(t => t.onclick = () => { const li = t.closest("li"); li.classList.toggle("closed"); t.textContent = li.classList.contains("closed") ? "+" : "−"; });
   }
+}
+
+/* ---------- COTISATIONS ---------- */
+const MOYENS = { especes: "Espèces", orange_money: "Orange Money", mtn_mobile_money: "MTN Mobile Money", carte_bancaire: "Carte bancaire", virement_international: "Virement international" };
+const MOIS_NOMS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+const moisLabel = d => { const [y, m] = String(d).split("-"); return MOIS_NOMS[parseInt(m, 10) - 1] + " " + y; };
+const moisPlus = (d, n) => { let [y, m] = String(d).split("-").map(Number); m += n; y += Math.floor((m - 1) / 12); m = ((m - 1) % 12) + 1; return y + "-" + String(m).padStart(2, "0") + "-01"; };
+let COTIS = [];
+
+async function renderCotis() {
+  if (!$("k-mois").value) { const n = new Date(); $("k-mois").value = n.getFullYear() + "-" + String(n.getMonth() + 1).padStart(2, "0"); }
+  const { data, error } = await db.from("cotisations").select("id, membre_id, mois, montant_du, statut").order("mois");
+  if (error) return dmsg("Impossible de charger les cotisations : " + error.message, "err");
+  COTIS = data;
+  const cur = $("k-membre").value;
+  $("k-membre").innerHTML = MEMBRES.filter(m => m.statut_vital !== "decede").map(m => `<option value="${m.id}">${esc(m.nom)}</option>`).join("");
+  if (cur) $("k-membre").value = cur;
+  infoMembre();
+}
+function infoMembre() {
+  const id = $("k-membre").value;
+  const retard = COTIS.filter(c => c.membre_id === id && c.statut === "en_retard");
+  const total = retard.reduce((a, c) => a + c.montant_du, 0);
+  $("k-info").textContent = retard.length ? retard.length + " mois en retard, soit " + fmt(total) + "." : "Aucun mois en retard.";
+}
+$("k-membre").onchange = infoMembre;
+
+$("k-ouvrir").onclick = () => busy($("k-ouvrir"), async () => {
+  const v = $("k-mois").value;
+  if (!v) return dmsg("Choisissez un mois.", "err");
+  const mois = v + "-01";
+  const vivants = MEMBRES.filter(m => m.statut_vital !== "decede");
+  const sans = vivants.filter(m => !m.categorie_id).length;
+  const existants = new Set(COTIS.filter(c => c.mois === mois).map(c => c.membre_id));
+  const lignes = vivants.filter(m => m.categorie_id && !existants.has(m.id)).map(m => ({
+    membre_id: m.id, mois, montant_du: (CATS.find(c => c.id === m.categorie_id) || {}).montant_mensuel || 0, statut: "en_retard"
+  }));
+  if (!lignes.length) return dmsg("Rien à créer : ce mois existe déjà pour tous les membres." + (sans ? " " + sans + " membre(s) sans catégorie ignoré(s)." : ""), "ok");
+  const { error } = await db.from("cotisations").insert(lignes);
+  if (error) return dmsg("Création refusée : " + error.message, "err");
+  dmsg(lignes.length + " ligne(s) créée(s) pour " + moisLabel(mois) + "." + (sans ? " " + sans + " membre(s) sans catégorie ignoré(s)." : ""), "ok");
+  await loadAll(); renderCotis();
+});
+
+$("k-payer").onclick = () => busy($("k-payer"), async () => {
+  const id = $("k-membre").value, nb = parseInt($("k-nb").value, 10), moyen = $("k-moyen").value;
+  if (!id) return dmsg("Choisissez un membre.", "err");
+  if (!nb || nb < 1) return dmsg("Indiquez au moins 1 mois.", "err");
+  const m = MEMBRES.find(x => x.id === id);
+  const cat = CATS.find(c => c.id === m.categorie_id);
+  if (!cat) return dmsg("Ce membre n’a pas de catégorie : choisissez-en une avant d’enregistrer un paiement.", "err");
+  const now = new Date().toISOString();
+  const retard = COTIS.filter(c => c.membre_id === id && c.statut === "en_retard").sort((a, b) => a.mois.localeCompare(b.mois));
+  const aSolder = retard.slice(0, nb);
+  let total = 0;
+  for (const c of aSolder) {
+    const { error } = await db.from("cotisations").update({ statut: "a_jour", date_paiement: now, moyen_paiement: moyen }).eq("id", c.id);
+    if (error) return dmsg("Paiement refusé : " + error.message, "err");
+    total += c.montant_du;
+  }
+  const reste = nb - aSolder.length;
+  if (reste > 0) {
+    const mm = COTIS.filter(c => c.membre_id === id).map(c => c.mois).sort();
+    let debut = mm.length ? moisPlus(mm[mm.length - 1], 1) : (() => { const n = new Date(); return n.getFullYear() + "-" + String(n.getMonth() + 1).padStart(2, "0") + "-01"; })();
+    const lignes = [];
+    for (let i = 0; i < reste; i++) { lignes.push({ membre_id: id, mois: moisPlus(debut, i), montant_du: cat.montant_mensuel, statut: "a_jour", date_paiement: now, moyen_paiement: moyen }); total += cat.montant_mensuel; }
+    const { error } = await db.from("cotisations").insert(lignes);
+    if (error) return dmsg("Paiement refusé : " + error.message, "err");
+  }
+  const { data: cs } = await db.from("caisse").select("id, solde_courant").limit(1).maybeSingle();
+  if (cs && total > 0) {
+    await db.from("mouvements_caisse").insert({ caisse_id: cs.id, type_mouvement: "cotisation", montant: total, description: m.nom + " : " + nb + " mois (" + MOYENS[moyen] + ")" });
+    await db.from("caisse").update({ solde_courant: cs.solde_courant + total, updated_at: now }).eq("id", cs.id);
+  }
+  dmsg("Paiement enregistré : " + nb + " mois, " + fmt(total) + " pour " + m.nom + ".", "ok");
+  $("k-nb").value = 1;
+  await loadAll(); renderCotis();
+});
+
+async function renderMonEspace(monId) {
+  const [c, k] = await Promise.all([
+    db.from("cotisations").select("mois, montant_du, statut, date_paiement, moyen_paiement").eq("membre_id", monId).order("mois", { ascending: false }),
+    db.from("caisse").select("solde_courant").limit(1).maybeSingle()
+  ]);
+  const st = $("h-statut");
+  if (c.error) { st.className = "bigstat"; st.textContent = "Impossible de charger vos paiements."; return; }
+  const retard = c.data.filter(x => x.statut === "en_retard");
+  const du = retard.reduce((a, x) => a + x.montant_du, 0);
+  if (!c.data.length) { st.className = "bigstat"; st.innerHTML = "<b>Pas encore de mois ouvert</b>L’administrateur n’a pas encore ouvert de mois de cotisation."; }
+  else if (retard.length) { st.className = "bigstat late"; st.innerHTML = "<b>" + fmt(du) + " à régler</b>" + retard.length + " mois en retard"; }
+  else { st.className = "bigstat ok"; st.innerHTML = "<b>Vous êtes à jour</b>Merci pour votre cotisation."; }
+  $("h-histo").innerHTML = c.data.length ? c.data.map(x => `<div class="ligne"><div><b>${esc(moisLabel(x.mois))}</b><div class="d">${x.statut === "a_jour" ? "Payé" + (x.date_paiement ? " le " + new Date(x.date_paiement).toLocaleDateString("fr-FR") : "") + (x.moyen_paiement ? " · " + esc(MOYENS[x.moyen_paiement] || x.moyen_paiement) : "") : "En attente de paiement"}</div></div><div class="${x.statut === "a_jour" ? "ok-t" : "late-t"}">${fmt(x.montant_du)}</div></div>`).join("") : "Aucun mois pour l’instant.";
+  $("h-caisse").textContent = k.data ? fmt(k.data.solde_courant) : "—";
 }
 
 let EDIT_ID = null;
