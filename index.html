@@ -86,6 +86,7 @@ button.mini{width:auto;margin:6px 0 0;padding:7px 14px;font-size:14px;background
 .bigstat b{display:block;font:700 28px/1.15 Georgia,serif}
 .bigstat.late b{color:var(--err)}.bigstat.ok b{color:var(--green)}
 button.ghost{background:var(--card);color:var(--green);border:1.5px solid var(--green)}
+button.oeil{width:auto;margin:0 0 0 8px;padding:6px 10px;font-size:22px;line-height:1;background:none;border:0;vertical-align:middle}
 </style>
 </head>
 <body>
@@ -131,7 +132,7 @@ button.ghost{background:var(--card);color:var(--green);border:1.5px solid var(--
         <h2>Mes paiements</h2>
         <div id="h-histo"></div>
         <h2 style="margin-top:18px">Caisse familiale</h2>
-        <div id="h-caisse" class="big"></div>
+        <div class="big"><span id="h-caisse"></span><button class="oeil" id="h-oeil" aria-label="Afficher ou masquer le solde">👁</button></div>
       </div>
       <div id="h-arbre" class="hidden" style="margin-top:18px">
         <h2>Arbre généalogique</h2>
@@ -240,8 +241,8 @@ button.ghost{background:var(--card);color:var(--green);border:1.5px solid var(--
       <div class="card">
         <h2>Caisse familiale</h2>
         <span class="dt" style="color:var(--muted)">Solde courant</span>
-        <div class="big" id="c-courant">—</div>
-        <span class="dt" style="color:var(--muted)">Solde initial : <span id="c-init">—</span></span>
+        <div class="big"><span id="c-courant">—</span><button class="oeil" id="c-oeil" aria-label="Afficher ou masquer le solde">👁</button></div>
+        <span class="dt" style="color:var(--muted)">Solde initial : <span id="c-init">—</span> <button class="oeil" id="c-oeil2" style="font-size:16px" aria-label="Afficher ou masquer le solde">👁</button></span>
         <div id="c-edit">
           <label for="c-new">Définir le solde initial (francs)</label>
           <input id="c-new" type="number" inputmode="numeric">
@@ -548,8 +549,20 @@ async function renderMonEspace(monId) {
   else if (c.data.every(x => x.montant_du === 0)) { st.className = "bigstat ok"; st.innerHTML = "<b>Vous êtes exempté de cotisation</b>Qu’Allah vous protège."; }
   else { st.className = "bigstat ok"; st.innerHTML = "<b>Vous êtes à jour</b>Merci pour votre cotisation."; }
   $("h-histo").innerHTML = c.data.length ? c.data.map(x => `<div class="ligne"><div><b>${esc(moisLabel(x.mois))}</b><div class="d">${x.statut === "a_jour" ? "Payé" + (x.date_paiement ? " le " + new Date(x.date_paiement).toLocaleDateString("fr-FR") : "") + (x.moyen_paiement ? " · " + esc(MOYENS[x.moyen_paiement] || x.moyen_paiement) : "") : "En attente de paiement"}</div></div><div class="${x.statut === "a_jour" ? "ok-t" : "late-t"}">${fmt(x.montant_du)}</div></div>`).join("") : "Aucun mois pour l’instant.";
-  $("h-caisse").textContent = k.data ? fmt(k.data.solde_courant) : "—";
+  SOLDE_VAL = k.data ? k.data.solde_courant : null; SOLDE_VISIBLE = false; majSolde();
 }
+
+/* ---------- SOLDE MASQUÉ ---------- */
+const ETOILES = "********";
+let SOLDE_VISIBLE = false, SOLDE_VAL = null, SOLDE_INIT = null;
+const soldeTxt = v => v == null ? "—" : (SOLDE_VISIBLE ? fmt(v) : ETOILES + " FCFA");
+function majSolde() {
+  $("h-caisse").textContent = soldeTxt(SOLDE_VAL);
+  $("c-courant").textContent = CAISSE ? soldeTxt(CAISSE.solde_courant) : "Pas encore saisi";
+  $("c-init").textContent = CAISSE ? soldeTxt(CAISSE.solde_initial) : "—";
+  ["h-oeil", "c-oeil", "c-oeil2"].forEach(i => { $(i).textContent = SOLDE_VISIBLE ? "🙈" : "👁"; });
+}
+["h-oeil", "c-oeil", "c-oeil2"].forEach(i => $(i).onclick = () => { SOLDE_VISIBLE = !SOLDE_VISIBLE; majSolde(); });
 
 let EDIT_ID = null;
 function renderForm() {
@@ -586,8 +599,7 @@ function editMembre(id) {
 }
 
 function renderCaisse() {
-  $("c-courant").textContent = CAISSE ? fmt(CAISSE.solde_courant) : "Pas encore saisi";
-  $("c-init").textContent = CAISSE ? fmt(CAISSE.solde_initial) : "—";
+  majSolde();
   $("c-new").placeholder = CAISSE ? "Actuel : " + CAISSE.solde_initial : "Montant en francs";
   $("c-new").value = "";
 }
@@ -688,4 +700,4 @@ db.auth.onAuthStateChange(event => {
 })();
 </script>
 </body>
-</html>
+      </html>
