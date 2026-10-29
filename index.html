@@ -319,7 +319,7 @@ async function showHome() {
   show("home");
   $("hello").textContent = "Bonjour, " + data.nom;
   $("role").textContent = ROLES[data.role] || data.role;
-  $("homeNote").textContent = "Vous êtes connecté. Votre tableau de bord de membre arrive à la prochaine étape.";
+  $("homeNote").textContent = "Vous êtes connecté.";
   $("h-cotis").classList.remove("hidden");
   renderMonEspace(data.id);
   $("h-arbre").classList.remove("hidden");
@@ -490,7 +490,7 @@ $("k-ouvrir").onclick = () => busy($("k-ouvrir"), async () => {
   const sans = vivants.filter(m => !m.categorie_id).length;
   const existants = new Set(COTIS.filter(c => c.mois === mois).map(c => c.membre_id));
   const lignes = vivants.filter(m => m.categorie_id && !existants.has(m.id)).map(m => ({
-    membre_id: m.id, mois, montant_du: (CATS.find(c => c.id === m.categorie_id) || {}).montant_mensuel || 0, statut: "en_retard"
+    membre_id: m.id, mois, montant_du: (CATS.find(c => c.id === m.categorie_id) || {}).montant_mensuel || 0, statut: ((CATS.find(c => c.id === m.categorie_id) || {}).montant_mensuel || 0) === 0 ? "a_jour" : "en_retard"
   }));
   if (!lignes.length) return dmsg("Rien à créer : ce mois existe déjà pour tous les membres." + (sans ? " " + sans + " membre(s) sans catégorie ignoré(s)." : ""), "ok");
   const { error } = await db.from("cotisations").insert(lignes);
@@ -545,6 +545,7 @@ async function renderMonEspace(monId) {
   const du = retard.reduce((a, x) => a + x.montant_du, 0);
   if (!c.data.length) { st.className = "bigstat"; st.innerHTML = "<b>Pas encore de mois ouvert</b>L’administrateur n’a pas encore ouvert de mois de cotisation."; }
   else if (retard.length) { st.className = "bigstat late"; st.innerHTML = "<b>" + fmt(du) + " à régler</b>" + retard.length + " mois en retard"; }
+  else if (c.data.every(x => x.montant_du === 0)) { st.className = "bigstat ok"; st.innerHTML = "<b>Vous êtes exempté de cotisation</b>Qu’Allah vous protège."; }
   else { st.className = "bigstat ok"; st.innerHTML = "<b>Vous êtes à jour</b>Merci pour votre cotisation."; }
   $("h-histo").innerHTML = c.data.length ? c.data.map(x => `<div class="ligne"><div><b>${esc(moisLabel(x.mois))}</b><div class="d">${x.statut === "a_jour" ? "Payé" + (x.date_paiement ? " le " + new Date(x.date_paiement).toLocaleDateString("fr-FR") : "") + (x.moyen_paiement ? " · " + esc(MOYENS[x.moyen_paiement] || x.moyen_paiement) : "") : "En attente de paiement"}</div></div><div class="${x.statut === "a_jour" ? "ok-t" : "late-t"}">${fmt(x.montant_du)}</div></div>`).join("") : "Aucun mois pour l’instant.";
   $("h-caisse").textContent = k.data ? fmt(k.data.solde_courant) : "—";
