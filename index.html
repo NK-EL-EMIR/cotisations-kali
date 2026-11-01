@@ -27,6 +27,8 @@ button.link{background:none;color:var(--green);margin-top:14px;padding:8px;font-
 
 body.dash{display:block;padding:16px}
 body.dash main{max-width:760px;margin:0 auto}
+body.dash #v-home{font-size:15px}
+body.dash #v-home h2{font-size:19px}
 .top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
 .top .who{font-weight:700;font-size:18px}
 .top button{width:auto;margin:0;padding:8px 14px;font-size:15px}
@@ -275,7 +277,9 @@ function show(name) {
   document.body.classList.remove("dash");
   document.querySelector("main > .card").classList.remove("hidden");
   document.querySelector("main > h1").classList.remove("hidden");
-  $("sub").classList.remove("hidden");
+  $("sub").classList.toggle("hidden", name === "home");
+  document.querySelector("main > h1").classList.toggle("hidden", name === "home");
+  document.body.classList.toggle("dash", name === "home");
   $("sub").textContent = {
     login: "Connectez-vous avec votre adresse email.",
     forgot: "Nous vous envoyons un lien pour choisir un nouveau mot de passe.",
@@ -319,6 +323,7 @@ async function showHome() {
   if (data.role === "administrateur" || data.role === "super_administrateur") return showDash();
   show("home");
   $("hello").textContent = "Bonjour, " + data.nom;
+  window.scrollTo(0, 0);
   $("role").textContent = ROLES[data.role] || data.role;
   $("homeNote").textContent = "Vous êtes connecté.";
   $("h-cotis").classList.remove("hidden");
@@ -700,4 +705,4 @@ db.auth.onAuthStateChange(event => {
 })();
 </script>
 </body>
-      </html>
+  </html>
