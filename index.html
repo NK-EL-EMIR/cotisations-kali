@@ -89,6 +89,16 @@ button.mini{width:auto;margin:6px 0 0;padding:7px 14px;font-size:14px;background
 .bigstat.late b{color:var(--err)}.bigstat.ok b{color:var(--green)}
 button.ghost{background:var(--card);color:var(--green);border:1.5px solid var(--green)}
 button.oeil{width:auto;margin:0 0 0 8px;padding:6px 10px;font-size:22px;line-height:1;background:none;border:0;vertical-align:middle}
+.pk-sel{font-size:15px;color:var(--muted);margin:0 0 6px}
+.pk-list{border:1.5px solid var(--line);border-radius:10px;background:#fff;max-height:220px;overflow:auto;margin-top:6px;text-align:left}
+.pk-it{padding:11px 14px;border-top:1px solid var(--line);cursor:pointer}
+.pk-it:first-child{border-top:0}
+.pk-sp{color:var(--green);font-weight:600}
+.pk-none{padding:11px 14px;color:var(--muted)}
+.pk-new{border:1.5px solid var(--green);border-radius:10px;padding:12px;margin-top:8px}
+.cpl{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line);text-align:left}
+.cpl:first-child{border-top:0}
+.sect{margin-top:22px;padding-top:6px;border-top:2px solid var(--line)}
 </style>
 </head>
 <body>
@@ -187,28 +197,48 @@ button.oeil{width:auto;margin:0 0 0 8px;padding:6px 10px;font-size:22px;line-hei
         <input id="a-lieu" autocomplete="off">
         <label for="a-fonction">Fonction / métier (facultatif)</label>
         <input id="a-fonction" autocomplete="off">
-        <label for="a-cat">Catégorie</label>
-        <select id="a-cat"></select>
-        <label for="a-parent">Parent (pour l’arbre généalogique)</label>
-        <select id="a-parent"></select>
-        <label for="a-solde">Solde de départ en francs (arriérés ou avance, facultatif)</label>
-        <input id="a-solde" type="number" inputmode="numeric" value="0">
+        <div id="a-cot-box">
+          <label for="a-montant">Montant à cotiser par mois *</label>
+          <select id="a-montant"></select>
+          <label for="a-debut">Mois de début de cotisation *</label>
+          <input id="a-debut" type="month">
+          <label for="a-verse">Montant déjà versé avant l’application (en francs CFA)</label>
+          <input id="a-verse" type="number" inputmode="numeric" min="0" value="0">
+          <p class="note">C’est ce que la personne a déjà donné avant la digitalisation. Il est déduit des mois dus depuis son mois de début. Un mois est dû une fois terminé, donc à partir du 1er du mois suivant.</p>
+          <p class="note hidden" id="a-histo-note">L’historique de cette personne est déjà calculé : changer le mois de début ou le montant déjà versé ne modifie pas les mois existants. Le nouveau montant mensuel ne compte que pour les mois à venir.</p>
+        </div>
+
+        <div id="pk-pere-box"></div>
+        <div id="pk-mere-box"></div>
+
         <div id="a-vital-box" class="hidden">
           <label for="a-vital">Statut</label>
           <select id="a-vital"><option value="vivant">Vivant</option><option value="decede">رحمه الله</option></select>
         </div>
+
+        <div id="a-couples" class="hidden sect">
+          <h2>Conjoints</h2>
+          <div id="a-couples-list"></div>
+          <label for="a-conj">Ajouter un conjoint</label>
+          <select id="a-conj"></select>
+          <label for="a-conj-ext">Ou le nom d’une personne extérieure à la famille</label>
+          <input id="a-conj-ext" autocomplete="off">
+          <button class="mini" id="a-conj-add">Ajouter ce conjoint</button>
+          <p class="note">Une personne extérieure à la famille apparaît dans l’arbre, mais ne cotise pas et n’a pas de compte.</p>
+        </div>
+
         <div class="row2"><button id="a-save">Enregistrer la fiche</button><button id="a-cancel" class="ghost hidden">Annuler</button></div>
-        <p class="note">Pour que ce membre puisse se connecter : dans Supabase, ouvrez Authentication, Users, puis Invite user, avec le même email.</p>
+        <p class="note">Pour que ce membre puisse se connecter : dans Supabase, ouvrez Authentication, Users, puis Invite user, avec le même email. Pour ajouter un conjoint, enregistrez d’abord la fiche, puis touchez Modifier.</p>
       </div>
     </div>
 
-    <div id="t-cotis" class="hidden">
+            <div id="t-cotis" class="hidden">
       <div class="card">
         <h2>Cotisations</h2>
         <label for="k-mois">Mois à ouvrir</label>
         <input id="k-mois" type="month">
         <button id="k-ouvrir">Créer ce mois pour tous les membres vivants</button>
-        <p class="note">Crée une ligne par membre avec le montant de sa catégorie. Sans danger si on le refait : les lignes existantes ne sont pas touchées.</p>
+        <p class="note">Crée une ligne par membre avec son montant mensuel. Sans danger si on le refait : les lignes existantes ne sont pas touchées. Les personnes extérieures à la famille sont ignorées.</p>
       </div>
       <div class="card" style="margin-top:14px">
         <h2>Enregistrer un paiement</h2>
@@ -266,9 +296,11 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const $ = id => document.getElementById(id);
 const views = ["login", "forgot", "setpw", "home"];
-let ME = null, CATS = [], MEMBRES = [], CAISSE = null;
+let ME = null, MEMBRES = [], COUPLES = [], CAISSE = null, EDIT_ID = null, EDIT_M = null;
 const fmt = n => new Intl.NumberFormat("fr-FR").format(n || 0) + " FCFA";
 const ROLES = { membre: "Membre", administrateur: "Administrateur", super_administrateur: "Super-administrateur" };
+const MONTANTS = [0, 500, 1000, 1500, 2000, 2500, 3000, 5000];
+const MEMBRE_COLS = "id, nom, telephone, email, sexe, date_naissance, lieu_naissance, fonction, role, statut_vital, auth_id, pere_id, mere_id, pere_inconnu, mere_inconnue, est_cotisant, montant_mensuel, mois_debut, montant_deja_verse, avance, historique_genere";
 let settingPassword = /type=(invite|recovery)/.test(location.hash);
 
 function show(name) {
@@ -334,6 +366,8 @@ async function showHome() {
 
 /* ---------- TABLEAU DE BORD ---------- */
 function dmsg(text, kind) { const m = $("d-msg"); m.textContent = text; m.className = "msg" + (kind ? " " + kind : ""); }
+const cut = (s, n) => s.length > n ? s.slice(0, n - 1) + "…" : s;
+const moisCourant = () => { const n = new Date(); return n.getFullYear() + "-" + String(n.getMonth() + 1).padStart(2, "0") + "-01"; };
 function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
 function showDash() {
@@ -359,15 +393,26 @@ function tab(name) {
   dmsg("");
 }
 
+async function chargerMembres() {
+  const { data, error } = await db.from("membres").select(MEMBRE_COLS).order("nom");
+  if (!error) MEMBRES = data;
+  return error;
+}
+async function chargerCouples() {
+  const { data, error } = await db.from("couples").select("id, membre1_id, membre2_id, termine, motif_fin");
+  if (!error) COUPLES = data;
+  return error;
+}
+
 async function loadAll() {
-  const [c, m, k, cot] = await Promise.all([
-    db.from("categories").select("id, nom, montant_mensuel").order("nom"),
-    db.from("membres").select("id, nom, telephone, email, sexe, date_naissance, lieu_naissance, fonction, categorie_id, role, statut_vital, parent_id, auth_id").order("nom"),
+  const [m, k, cot, e2] = await Promise.all([
+    chargerMembres(),
     db.from("caisse").select("*").limit(1).maybeSingle(),
-    db.from("cotisations").select("membre_id, statut")
+    db.from("cotisations").select("membre_id, statut"),
+    chargerCouples()
   ]);
-  if (c.error || m.error) return dmsg("Impossible de charger les données : " + (c.error || m.error).message, "err");
-  CATS = c.data; MEMBRES = m.data; CAISSE = k.data;
+  if (m) return dmsg("Impossible de charger les données : " + m.message, "err");
+  CAISSE = k.data;
   const retard = new Set((cot.data || []).filter(x => x.statut === "en_retard").map(x => x.membre_id));
   renderMembres(retard);
   renderForm();
@@ -375,25 +420,28 @@ async function loadAll() {
 }
 
 function renderMembres(retard) {
-  const vivants = MEMBRES.filter(x => x.statut_vital !== "decede");
+  const vivants = MEMBRES.filter(x => x.statut_vital !== "decede" && x.est_cotisant !== false);
   const late = vivants.filter(x => retard.has(x.id)).length;
   $("s-total").textContent = vivants.length;
   $("s-late").textContent = late;
   $("s-ok").textContent = vivants.length - late;
-  const catNom = id => (CATS.find(c => c.id === id) || {}).nom || "Sans catégorie";
-  $("d-list").innerHTML = MEMBRES.length ? MEMBRES.map(x => `
+  $("d-list").innerHTML = MEMBRES.length ? MEMBRES.map(x => {
+    const ext = x.est_cotisant === false;
+    const dt = ext ? "Extérieur à la famille" : fmt(x.montant_mensuel) + " par mois" + (x.telephone ? " · " + esc(x.telephone) : "") + (x.auth_id ? "" : " · sans compte");
+    return `
     <div class="mbr">
       <div>
         <div class="nm">${esc(x.nom)} ${x.statut_vital === "decede" ? '<span class="badge" dir="rtl">رحمه الله</span>' : ''}</div>
-        <div class="dt">${esc(catNom(x.categorie_id))}${x.telephone ? " · " + esc(x.telephone) : ""}${x.auth_id ? "" : " · sans compte"}</div>
-        ${x.statut_vital === "decede" ? "" : `<span class="badge ${retard.has(x.id) ? "late" : "ok"}">${retard.has(x.id) ? "En retard" : "À jour"}</span>`}
+        <div class="dt">${dt}</div>
+        ${(ext || x.statut_vital === "decede") ? "" : `<span class="badge ${retard.has(x.id) ? "late" : "ok"}">${retard.has(x.id) ? "En retard" : "À jour"}</span>`}
         <div><button class="mini" data-edit="${x.id}">Modifier</button></div>
       </div>
-      ${ME.role === "super_administrateur" && x.id !== ME.id ? `
+      ${ext ? '<span class="badge">Hors famille</span>' : (ME.role === "super_administrateur" && x.id !== ME.id ? `
       <select class="small" data-id="${x.id}" aria-label="Rôle de ${esc(x.nom)}">
         ${Object.entries(ROLES).map(([k, v]) => `<option value="${k}" ${k === x.role ? "selected" : ""}>${v}</option>`).join("")}
-      </select>` : `<span class="badge">${ROLES[x.role]}</span>`}
-    </div>`).join("") : "Aucun membre pour l’instant.";
+      </select>` : `<span class="badge">${ROLES[x.role]}</span>`)}
+    </div>`;
+  }).join("") : "Aucun membre pour l’instant.";
   document.querySelectorAll("#d-list [data-edit]").forEach(b => b.onclick = () => editMembre(b.dataset.edit));
   document.querySelectorAll("#d-list select").forEach(s => s.onchange = async () => {
     const { error } = await db.from("membres").update({ role: s.value }).eq("id", s.dataset.id);
@@ -406,34 +454,73 @@ function renderMembres(retard) {
 /* ---------- ARBRE GÉNÉALOGIQUE ---------- */
 const DECES = "رحمه الله";
 let ARBRE_MODE = localStorage.getItem("arbreMode") || "liste";
-function construireArbre(list) {
-  const ids = new Set(list.map(m => m.id));
+function arbreModele(list, couples) {
+  const byId = {};
+  list.forEach(m => byId[m.id] = m);
+  const fam = m => m && m.est_cotisant !== false;
+  const lies = new Set();
+  couples.forEach(c => { lies.add(c.membre1_id); lies.add(c.membre2_id); });
+  list.forEach(m => {
+    if (m.pere_id && byId[m.pere_id]) lies.add(m.pere_id);
+    if (m.mere_id && byId[m.mere_id]) lies.add(m.mere_id);
+  });
   const enfants = {};
-  list.forEach(m => { const p = (m.parent_id && ids.has(m.parent_id)) ? m.parent_id : "_racine"; (enfants[p] = enfants[p] || []).push(m); });
+  list.forEach(m => {
+    const p = byId[m.pere_id], q = byId[m.mere_id];
+    let pid = null;
+    if (p && q) pid = (fam(p) || !fam(q)) ? p.id : q.id;
+    else if (p) pid = p.id;
+    else if (q) pid = q.id;
+    const cle = pid || "_racine";
+    (enfants[cle] = enfants[cle] || []).push(m);
+  });
   Object.values(enfants).forEach(a => a.sort((x, y) => (x.nom || "").localeCompare(y.nom || "", "fr")));
-  return enfants;
+  const roots = (enfants["_racine"] || []).filter(m => fam(m) || (enfants[m.id] && enfants[m.id].length) || !lies.has(m.id));
+  const conj = {};
+  couples.forEach(c => {
+    [[c.membre1_id, c.membre2_id], [c.membre2_id, c.membre1_id]].forEach(([a, b]) => {
+      if (byId[a] && byId[b]) (conj[a] = conj[a] || []).push({ nom: byId[b].nom, fin: c.termine });
+    });
+  });
+  return { byId, enfants, roots, conj };
 }
-function arbreListeHTML(enfants, pid) {
-  const a = enfants[pid] || [];
-  if (!a.length) return "";
-  return "<ul" + (pid === "_racine" ? ' class="tr"' : "") + ">" + a.map(m => {
-    const sub = arbreListeHTML(enfants, m.id);
+function infosNoeud(M, m) {
+  const out = [];
+  const p = M.byId[m.pere_id], q = M.byId[m.mere_id], parts = [];
+  if (p) parts.push("Père : " + p.nom);
+  if (q) parts.push("Mère : " + q.nom);
+  if (parts.length) out.push(parts.join(" · "));
+  const c = M.conj[m.id];
+  if (c && c.length) out.push("Conjoint : " + c.map(x => x.nom + (x.fin ? " (terminé)" : "")).join(" ; "));
+  return out;
+}
+function arbreListeHTML(M, liste, racine, vis) {
+  const items = liste.filter(m => !vis.has(m.id));
+  if (!items.length) return "";
+  return "<ul" + (racine ? ' class="tr"' : "") + ">" + items.map(m => {
+    vis.add(m.id);
+    const sub = arbreListeHTML(M, M.enfants[m.id] || [], false, vis);
     const dc = m.statut_vital === "decede";
-    return `<li>${sub ? '<span class="tg">−</span>' : ""}<span class="nd${dc ? " dc" : ""}">${esc(m.nom)}${dc ? "<small dir=\"rtl\">" + DECES + "</small>" : ""}</span>${sub}</li>`;
+    const infos = infosNoeud(M, m).map(l => "<small>" + esc(l) + "</small>").join("");
+    return `<li>${sub ? '<span class="tg">−</span>' : ""}<span class="nd${dc ? " dc" : ""}">${esc(m.nom)}${dc ? "<small dir=\"rtl\">" + DECES + "</small>" : ""}${infos}</span>${sub}</li>`;
   }).join("") + "</ul>";
 }
-function arbreDessinSVG(enfants) {
-  const W = 150, H = 46, GX = 16, GY = 34;
-  let nextX = 0, maxD = 0; const pos = {}, links = [];
+function arbreDessinSVG(M) {
+  const W = 170, H = 66, GX = 16, GY = 34;
+  let nextX = 0, maxD = 0;
+  const pos = {}, links = [], vis = new Set();
   function place(m, d) {
+    vis.add(m.id);
     maxD = Math.max(maxD, d);
-    const kids = enfants[m.id] || [];
+    const kids = (M.enfants[m.id] || []).filter(k => !vis.has(k.id));
+    kids.forEach(k => place(k, d + 1));
+    const placed = kids.filter(k => pos[k.id]);
     let x;
-    if (!kids.length) { x = nextX; nextX += W + GX; }
-    else { kids.forEach(k => place(k, d + 1)); x = (pos[kids[0].id].x + pos[kids[kids.length - 1].id].x) / 2; kids.forEach(k => links.push([m.id, k.id])); }
+    if (!placed.length) { x = nextX; nextX += W + GX; }
+    else { x = (pos[placed[0].id].x + pos[placed[placed.length - 1].id].x) / 2; placed.forEach(k => links.push([m.id, k.id])); }
     pos[m.id] = { x, y: d * (H + GY), m };
   }
-  (enfants["_racine"] || []).forEach(r => place(r, 0));
+  M.roots.forEach(r => { if (!vis.has(r.id)) place(r, 0); });
   const w = Math.max(nextX, W), h = (maxD + 1) * (H + GY);
   let g = "";
   links.forEach(([a, b]) => {
@@ -441,10 +528,13 @@ function arbreDessinSVG(enfants) {
     g += `<path d="M${x1} ${y1} V${my} H${x2} V${y2}" fill="none" stroke="#9DB6DE" stroke-width="2"/>`;
   });
   Object.values(pos).forEach(({ x, y, m }) => {
-    const dc = m.statut_vital === "decede", nom = m.nom.length > 20 ? m.nom.slice(0, 19) + "…" : m.nom;
+    const dc = m.statut_vital === "decede";
     g += `<rect x="${x}" y="${y}" width="${W}" height="${H}" rx="9" fill="${dc ? "#EEF1F6" : "#F7FAFE"}" stroke="${dc ? "#52627F" : "#1558C0"}" stroke-width="1.5"/>`;
-    g += `<text x="${x + W / 2}" y="${y + (dc ? 19 : 28)}" text-anchor="middle">${esc(nom)}</text>`;
-    if (dc) g += `<text class="sm" x="${x + W / 2}" y="${y + 35}" text-anchor="middle" direction="rtl">رحمه الله</text>`;
+    g += `<text x="${x + W / 2}" y="${y + 22}" text-anchor="middle">${esc(cut(m.nom, 22))}</text>`;
+    let ly = y + 38;
+    if (dc) { g += `<text class="sm" x="${x + W / 2}" y="${ly}" text-anchor="middle" direction="rtl">رحمه الله</text>`; ly += 16; }
+    const c = M.conj[m.id];
+    if (c && c.length) g += `<text class="sm" x="${x + W / 2}" y="${ly}" text-anchor="middle">${esc(cut("Conjoint : " + c.map(z => z.nom).join(" ; "), 28))}</text>`;
   });
   return `<div class="dess"><svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${g}</svg></div>`;
 }
@@ -452,13 +542,16 @@ async function renderArbre(outId, segId) {
   const out = $(outId), seg = $(segId);
   seg.querySelectorAll("button").forEach(b => { b.classList.toggle("on", b.dataset.m === ARBRE_MODE); b.onclick = () => { ARBRE_MODE = b.dataset.m; localStorage.setItem("arbreMode", ARBRE_MODE); renderArbre(outId, segId); }; });
   out.textContent = "Chargement…";
-  const { data, error } = await db.from("membres").select("id, nom, parent_id, statut_vital").order("nom");
-  if (error) { out.textContent = "Impossible de charger l’arbre : " + error.message; return; }
-  if (!data.length) { out.textContent = "Aucun membre pour l’instant."; return; }
-  const enfants = construireArbre(data);
-  if (ARBRE_MODE === "dessin") out.innerHTML = arbreDessinSVG(enfants);
+  const [a, c] = await Promise.all([
+    db.from("membres").select("id, nom, pere_id, mere_id, statut_vital, sexe, est_cotisant").order("nom"),
+    db.from("couples").select("id, membre1_id, membre2_id, termine")
+  ]);
+  if (a.error) { out.textContent = "Impossible de charger l’arbre : " + a.error.message; return; }
+  if (!a.data.length) { out.textContent = "Aucun membre pour l’instant."; return; }
+  const M = arbreModele(a.data, c.data || []);
+  if (ARBRE_MODE === "dessin") out.innerHTML = arbreDessinSVG(M);
   else {
-    out.innerHTML = arbreListeHTML(enfants, "_racine");
+    out.innerHTML = arbreListeHTML(M, M.roots, true, new Set());
     out.querySelectorAll(".tg").forEach(t => t.onclick = () => { const li = t.closest("li"); li.classList.toggle("closed"); t.textContent = li.classList.contains("closed") ? "+" : "−"; });
   }
 }
@@ -476,7 +569,7 @@ async function renderCotis() {
   if (error) return dmsg("Impossible de charger les cotisations : " + error.message, "err");
   COTIS = data;
   const cur = $("k-membre").value;
-  $("k-membre").innerHTML = MEMBRES.filter(m => m.statut_vital !== "decede").map(m => `<option value="${m.id}">${esc(m.nom)}</option>`).join("");
+  $("k-membre").innerHTML = MEMBRES.filter(m => m.statut_vital !== "decede" && m.est_cotisant !== false).map(m => `<option value="${m.id}">${esc(m.nom)}</option>`).join("");
   if (cur) $("k-membre").value = cur;
   infoMembre();
 }
@@ -492,16 +585,23 @@ $("k-ouvrir").onclick = () => busy($("k-ouvrir"), async () => {
   const v = $("k-mois").value;
   if (!v) return dmsg("Choisissez un mois.", "err");
   const mois = v + "-01";
-  const vivants = MEMBRES.filter(m => m.statut_vital !== "decede");
-  const sans = vivants.filter(m => !m.categorie_id).length;
+  const actifs = MEMBRES.filter(m => m.statut_vital !== "decede" && m.est_cotisant !== false);
   const existants = new Set(COTIS.filter(c => c.mois === mois).map(c => c.membre_id));
-  const lignes = vivants.filter(m => m.categorie_id && !existants.has(m.id)).map(m => ({
-    membre_id: m.id, mois, montant_du: (CATS.find(c => c.id === m.categorie_id) || {}).montant_mensuel || 0, statut: ((CATS.find(c => c.id === m.categorie_id) || {}).montant_mensuel || 0) === 0 ? "a_jour" : "en_retard"
-  }));
-  if (!lignes.length) return dmsg("Rien à créer : ce mois existe déjà pour tous les membres." + (sans ? " " + sans + " membre(s) sans catégorie ignoré(s)." : ""), "ok");
+  const avances = [];
+  const lignes = actifs.filter(m => !existants.has(m.id) && !(m.mois_debut && mois < m.mois_debut)).map(m => {
+    const mt = m.montant_mensuel || 0, av = m.avance || 0;
+    let du = mt, st = mt === 0 ? "a_jour" : "en_retard";
+    if (mt > 0 && av > 0) {
+      if (av >= mt) { st = "a_jour"; avances.push([m.id, av - mt]); }
+      else { du = mt - av; avances.push([m.id, 0]); }
+    }
+    return { membre_id: m.id, mois, montant_du: du, statut: st };
+  });
+  if (!lignes.length) return dmsg("Rien à créer : ce mois existe déjà pour tous les membres.", "ok");
   const { error } = await db.from("cotisations").insert(lignes);
   if (error) return dmsg("Création refusée : " + error.message, "err");
-  dmsg(lignes.length + " ligne(s) créée(s) pour " + moisLabel(mois) + "." + (sans ? " " + sans + " membre(s) sans catégorie ignoré(s)." : ""), "ok");
+  for (const [id, a] of avances) await db.from("membres").update({ avance: a }).eq("id", id);
+  dmsg(lignes.length + " ligne(s) créée(s) pour " + moisLabel(mois) + ".", "ok");
   await loadAll(); renderCotis();
 });
 
@@ -510,8 +610,8 @@ $("k-payer").onclick = () => busy($("k-payer"), async () => {
   if (!id) return dmsg("Choisissez un membre.", "err");
   if (!nb || nb < 1) return dmsg("Indiquez au moins 1 mois.", "err");
   const m = MEMBRES.find(x => x.id === id);
-  const cat = CATS.find(c => c.id === m.categorie_id);
-  if (!cat) return dmsg("Ce membre n’a pas de catégorie : choisissez-en une avant d’enregistrer un paiement.", "err");
+  const montant = m.montant_mensuel || 0;
+  if (montant <= 0) return dmsg("Ce membre est exempté de cotisation (0 FCFA) : il n’y a rien à payer.", "err");
   const now = new Date().toISOString();
   const retard = COTIS.filter(c => c.membre_id === id && c.statut === "en_retard").sort((a, b) => a.mois.localeCompare(b.mois));
   const aSolder = retard.slice(0, nb);
@@ -524,9 +624,9 @@ $("k-payer").onclick = () => busy($("k-payer"), async () => {
   const reste = nb - aSolder.length;
   if (reste > 0) {
     const mm = COTIS.filter(c => c.membre_id === id).map(c => c.mois).sort();
-    let debut = mm.length ? moisPlus(mm[mm.length - 1], 1) : (() => { const n = new Date(); return n.getFullYear() + "-" + String(n.getMonth() + 1).padStart(2, "0") + "-01"; })();
+    let debut = mm.length ? moisPlus(mm[mm.length - 1], 1) : moisCourant();
     const lignes = [];
-    for (let i = 0; i < reste; i++) { lignes.push({ membre_id: id, mois: moisPlus(debut, i), montant_du: cat.montant_mensuel, statut: "a_jour", date_paiement: now, moyen_paiement: moyen }); total += cat.montant_mensuel; }
+    for (let i = 0; i < reste; i++) { lignes.push({ membre_id: id, mois: moisPlus(debut, i), montant_du: montant, statut: "a_jour", date_paiement: now, moyen_paiement: moyen }); total += montant; }
     const { error } = await db.from("cotisations").insert(lignes);
     if (error) return dmsg("Paiement refusé : " + error.message, "err");
   }
@@ -539,6 +639,51 @@ $("k-payer").onclick = () => busy($("k-payer"), async () => {
   $("k-nb").value = 1;
   await loadAll(); renderCotis();
 });
+
+/* Calcule l'historique d'un membre : mois dus depuis son mois de début, puis déduit ce qu'il a déjà versé */
+async function genererHistorique(id, debut, montant, verse) {
+  let reste = verse;
+  if (montant > 0 && debut) {
+    const { data: ex, error: e1 } = await db.from("cotisations").select("id, mois, montant_du, statut").eq("membre_id", id);
+    if (e1) throw e1;
+    const cur = moisCourant();
+    const existants = new Set(ex.map(x => x.mois));
+    const nouvelles = [];
+    for (let m = debut; m < cur; m = moisPlus(m, 1)) {
+      if (!existants.has(m)) nouvelles.push({ membre_id: id, mois: m, montant_du: montant, statut: "en_retard" });
+    }
+    const toutes = [
+      ...ex.filter(x => x.statut === "en_retard" && x.mois >= debut).map(x => ({ ref: x, exist: true, mois: x.mois, montant_du: x.montant_du, paye: false })),
+      ...nouvelles.map(x => ({ ref: x, exist: false, mois: x.mois, montant_du: x.montant_du, paye: false }))
+    ].sort((a, b) => a.mois.localeCompare(b.mois));
+    for (const l of toutes) {
+      if (l.montant_du > 0 && reste >= l.montant_du) { reste -= l.montant_du; l.paye = true; }
+    }
+    const premier = toutes.find(l => !l.paye && l.montant_du > 0);
+    if (premier && reste > 0) {
+      const nv = Math.max(premier.montant_du - reste, 0);
+      premier.montant_du = nv;
+      reste = 0;
+      if (premier.exist) {
+        const { error } = await db.from("cotisations").update({ montant_du: nv }).eq("id", premier.ref.id);
+        if (error) throw error;
+      } else premier.ref.montant_du = nv;
+    }
+    const rows = nouvelles.map(n => { const l = toutes.find(t => t.ref === n); return l.paye ? { ...n, statut: "a_jour" } : n; });
+    for (let i = 0; i < rows.length; i += 200) {
+      const { error } = await db.from("cotisations").insert(rows.slice(i, i + 200));
+      if (error) throw error;
+    }
+    for (const l of toutes) {
+      if (l.exist && l.paye) {
+        const { error } = await db.from("cotisations").update({ statut: "a_jour" }).eq("id", l.ref.id);
+        if (error) throw error;
+      }
+    }
+  }
+  const { error } = await db.from("membres").update({ historique_genere: true, avance: reste }).eq("id", id);
+  if (error) throw error;
+}
 
 async function renderMonEspace(monId) {
   const [c, k] = await Promise.all([
@@ -569,39 +714,174 @@ function majSolde() {
 }
 ["h-oeil", "c-oeil", "c-oeil2"].forEach(i => $(i).onclick = () => { SOLDE_VISIBLE = !SOLDE_VISIBLE; majSolde(); });
 
-let EDIT_ID = null;
+/* ---------- CHOIX DU PÈRE ET DE LA MÈRE ---------- */
+const PK = { pere: { val: null, sexe: "M" }, mere: { val: null, sexe: "F" } };
+
+function pickerHTML(k) {
+  const t = k === "pere" ? "Père" : "Mère";
+  return `<label>${t} *</label>
+    <div class="pk-sel" id="pk-${k}-sel">Aucun choix</div>
+    <input id="pk-${k}-q" placeholder="Taper un nom pour chercher, ou toucher pour voir la liste" autocomplete="off">
+    <div class="pk-list hidden" id="pk-${k}-l"></div>
+    <div class="pk-new hidden" id="pk-${k}-n">
+      <label for="pk-${k}-nn" style="margin-top:0">Nom complet de la nouvelle personne</label>
+      <input id="pk-${k}-nn" autocomplete="off">
+      <p class="note">Cette personne est extérieure à la famille : elle apparaît dans l’arbre, mais ne cotise pas et n’a pas de compte. Si c’est un membre de la famille, enregistrez-le d’abord avec l’onglet Ajouter.</p>
+      <div class="row2"><button type="button" id="pk-${k}-ok">Créer cette personne</button><button type="button" class="ghost" id="pk-${k}-no">Annuler</button></div>
+    </div>`;
+}
+function pkMaj(k) {
+  const v = PK[k].val;
+  let t = "Aucun choix";
+  if (v === "inconnu") t = "Parent inconnu, ancêtre de la famille";
+  else if (v) { const m = MEMBRES.find(x => x.id === v); t = "Choisi : " + (m ? m.nom : "?"); }
+  $("pk-" + k + "-sel").textContent = t;
+}
+function pkRender(k) {
+  const q = $("pk-" + k + "-q").value.trim(), ql = q.toLowerCase(), box = $("pk-" + k + "-l");
+  const liste = MEMBRES.filter(m => m.id !== EDIT_ID && (m.sexe === PK[k].sexe || !m.sexe) && (!ql || (m.nom || "").toLowerCase().includes(ql)));
+  let h = liste.slice(0, 80).map(m => '<div class="pk-it" data-id="' + m.id + '">' + esc(m.nom) + (m.statut_vital === "decede" ? " (décédé)" : "") + (m.est_cotisant === false ? " · extérieur" : "") + '</div>').join("");
+  if (!liste.length) h += '<div class="pk-none">Aucune personne trouvée.</div>';
+  h += '<div class="pk-it pk-sp" data-act="new">➕ Ajouter ' + (q ? "« " + esc(q) + " »" : "une nouvelle personne") + '</div>';
+  h += '<div class="pk-it pk-sp" data-act="inc">❓ Parent inconnu, ancêtre de la famille</div>';
+  box.innerHTML = h;
+  box.classList.remove("hidden");
+  box.querySelectorAll(".pk-it").forEach(el => el.onclick = () => pkChoix(k, el));
+}
+function pkChoix(k, el) {
+  const act = el.dataset.act;
+  if (act === "new") {
+    $("pk-" + k + "-nn").value = $("pk-" + k + "-q").value.trim();
+    $("pk-" + k + "-n").classList.remove("hidden");
+    $("pk-" + k + "-l").classList.add("hidden");
+    return;
+  }
+  PK[k].val = act === "inc" ? "inconnu" : el.dataset.id;
+  $("pk-" + k + "-q").value = "";
+  $("pk-" + k + "-l").classList.add("hidden");
+  pkMaj(k);
+}
+async function creerExterieur(nom, sexe) {
+  return await db.from("membres").insert({ nom, sexe, est_cotisant: false, montant_mensuel: 0, role: "membre", statut_vital: "vivant", pere_inconnu: true, mere_inconnue: true, historique_genere: true, solde_depart: 0 }).select("id").single();
+}
+async function pkCreer(k) {
+  const nom = $("pk-" + k + "-nn").value.trim();
+  if (!nom) return dmsg("Saisissez le nom de la personne.", "err");
+  const { data, error } = await creerExterieur(nom, PK[k].sexe);
+  if (error) return dmsg("Création refusée : " + error.message, "err");
+  await chargerMembres();
+  PK[k].val = data.id;
+  pkMaj(k);
+  $("pk-" + k + "-n").classList.add("hidden");
+  $("pk-" + k + "-q").value = "";
+  dmsg(nom + " ajouté(e) à l’arbre.", "ok");
+}
+function initPickers() {
+  ["pere", "mere"].forEach(k => {
+    $("pk-" + k + "-box").innerHTML = pickerHTML(k);
+    $("pk-" + k + "-q").onfocus = () => pkRender(k);
+    $("pk-" + k + "-q").oninput = () => pkRender(k);
+    $("pk-" + k + "-no").onclick = () => $("pk-" + k + "-n").classList.add("hidden");
+    $("pk-" + k + "-ok").onclick = () => busy($("pk-" + k + "-ok"), () => pkCreer(k));
+  });
+}
+initPickers();
+
+/* ---------- FORMULAIRE MEMBRE ---------- */
 function renderForm() {
-  $("a-cat").innerHTML = '<option value="">— Choisir —</option>' + CATS.map(c => `<option value="${c.id}">${esc(c.nom)} (${fmt(c.montant_mensuel)}/mois)</option>`).join("");
-  $("a-parent").innerHTML = '<option value="">— Aucun (ancêtre ou inconnu) —</option>' + MEMBRES.filter(m => m.id !== EDIT_ID).map(m => `<option value="${m.id}">${esc(m.nom)}</option>`).join("");
+  const cur = $("a-montant").value;
+  $("a-montant").innerHTML = '<option value="">— Choisir —</option>' + MONTANTS.map(v => `<option value="${v}">${v === 0 ? "0 FCFA (exempté)" : fmt(v)}</option>`).join("");
+  $("a-montant").value = cur;
 }
 
 function resetForm() {
-  EDIT_ID = null;
-  ["a-nom","a-tel","a-email","a-sexe","a-naiss","a-lieu","a-fonction","a-cat","a-parent"].forEach(i => $(i).value = "");
-  $("a-solde").value = 0; $("a-vital").value = "vivant";
+  EDIT_ID = null; EDIT_M = null;
+  ["a-nom","a-tel","a-email","a-sexe","a-naiss","a-lieu","a-fonction","a-montant","a-debut"].forEach(i => $(i).value = "");
+  $("a-verse").value = 0; $("a-vital").value = "vivant";
+  ["pere", "mere"].forEach(k => { PK[k].val = null; $("pk-" + k + "-q").value = ""; $("pk-" + k + "-l").classList.add("hidden"); $("pk-" + k + "-n").classList.add("hidden"); pkMaj(k); });
   $("a-titre").textContent = "Nouvelle fiche membre";
   $("a-save").textContent = "Enregistrer la fiche";
   $("a-cancel").classList.add("hidden");
   $("a-vital-box").classList.add("hidden");
+  $("a-cot-box").classList.remove("hidden");
+  $("a-histo-note").classList.add("hidden");
   renderForm();
+  renderCouples();
 }
 
 function editMembre(id) {
   const m = MEMBRES.find(x => x.id === id);
   if (!m) return;
-  EDIT_ID = id;
+  EDIT_ID = id; EDIT_M = m;
   renderForm();
+  const ext = m.est_cotisant === false;
   $("a-nom").value = m.nom || ""; $("a-tel").value = m.telephone || ""; $("a-email").value = m.email || "";
   $("a-sexe").value = m.sexe || ""; $("a-naiss").value = m.date_naissance || ""; $("a-lieu").value = m.lieu_naissance || "";
-  $("a-fonction").value = m.fonction || ""; $("a-cat").value = m.categorie_id || ""; $("a-parent").value = m.parent_id || "";
+  $("a-fonction").value = m.fonction || "";
+  $("a-cot-box").classList.toggle("hidden", ext);
+  $("a-montant").value = ext ? "" : String(m.montant_mensuel || 0);
+  $("a-debut").value = m.mois_debut ? String(m.mois_debut).slice(0, 7) : "";
+  $("a-verse").value = m.montant_deja_verse || 0;
+  $("a-histo-note").classList.toggle("hidden", ext || !m.historique_genere);
+  PK.pere.val = m.pere_inconnu ? "inconnu" : (m.pere_id || null);
+  PK.mere.val = m.mere_inconnue ? "inconnu" : (m.mere_id || null);
+  ["pere", "mere"].forEach(k => { $("pk-" + k + "-q").value = ""; $("pk-" + k + "-l").classList.add("hidden"); $("pk-" + k + "-n").classList.add("hidden"); pkMaj(k); });
   $("a-vital").value = m.statut_vital === "decede" ? "decede" : "vivant";
   $("a-titre").textContent = "Modifier : " + m.nom;
   $("a-save").textContent = "Enregistrer les modifications";
   $("a-cancel").classList.remove("hidden");
   $("a-vital-box").classList.remove("hidden");
+  renderCouples();
   tab("ajout");
   window.scrollTo(0, 0);
 }
+
+/* ---------- CONJOINTS ---------- */
+function renderCouples() {
+  const box = $("a-couples");
+  if (!EDIT_ID) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  const nm = id => (MEMBRES.find(x => x.id === id) || {}).nom || "?";
+  const mine = COUPLES.filter(c => c.membre1_id === EDIT_ID || c.membre2_id === EDIT_ID);
+  $("a-couples-list").innerHTML = mine.length ? mine.map(c => {
+    const autre = c.membre1_id === EDIT_ID ? c.membre2_id : c.membre1_id;
+    const etat = c.termine ? "Mariage terminé" + (c.motif_fin ? " (" + esc(c.motif_fin) + ")" : "") : "Marié(e)";
+    const fin = c.termine ? "" : `<button class="mini" data-fin="${c.id}" data-motif="décès">Fin : décès</button> <button class="mini" data-fin="${c.id}" data-motif="divorce">Fin : divorce</button> `;
+    return `<div class="cpl"><div><b>${esc(nm(autre))}</b><div class="dt">${etat}</div></div><div>${fin}<button class="mini" data-del="${c.id}">Retirer</button></div></div>`;
+  }).join("") : '<div class="dt">Aucun conjoint enregistré.</div>';
+  $("a-couples-list").querySelectorAll("[data-fin]").forEach(b => b.onclick = async () => {
+    const { error } = await db.from("couples").update({ termine: true, motif_fin: b.dataset.motif }).eq("id", b.dataset.fin);
+    if (error) return dmsg("Changement refusé : " + error.message, "err");
+    await chargerCouples(); renderCouples();
+  });
+  $("a-couples-list").querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
+    if (!confirm("Retirer ce couple ?")) return;
+    const { error } = await db.from("couples").delete().eq("id", b.dataset.del);
+    if (error) return dmsg("Suppression refusée : " + error.message, "err");
+    await chargerCouples(); renderCouples();
+  });
+  $("a-conj").innerHTML = '<option value="">— Choisir dans la liste —</option>' + MEMBRES.filter(m => m.id !== EDIT_ID).map(m => `<option value="${m.id}">${esc(m.nom)}</option>`).join("");
+  $("a-conj-ext").value = "";
+}
+$("a-conj-add").onclick = () => busy($("a-conj-add"), async () => {
+  let autre = $("a-conj").value;
+  const nomExt = $("a-conj-ext").value.trim();
+  if (!autre && !nomExt) return dmsg("Choisissez un conjoint dans la liste, ou tapez le nom d’une personne extérieure.", "err");
+  if (!autre) {
+    const me = MEMBRES.find(x => x.id === EDIT_ID);
+    const sexe = me && me.sexe === "M" ? "F" : (me && me.sexe === "F" ? "M" : null);
+    const r = await creerExterieur(nomExt, sexe);
+    if (r.error) return dmsg("Création refusée : " + r.error.message, "err");
+    autre = r.data.id;
+    await chargerMembres();
+  }
+  if (COUPLES.some(c => !c.termine && ((c.membre1_id === EDIT_ID && c.membre2_id === autre) || (c.membre1_id === autre && c.membre2_id === EDIT_ID)))) return dmsg("Ce couple existe déjà.", "err");
+  const { error } = await db.from("couples").insert({ membre1_id: EDIT_ID, membre2_id: autre });
+  if (error) return dmsg("Ajout refusé : " + error.message, "err");
+  await chargerCouples();
+  renderCouples();
+  dmsg("Conjoint ajouté.", "ok");
+});
 
 function renderCaisse() {
   majSolde();
@@ -615,25 +895,49 @@ $("d-out").onclick = async () => { await db.auth.signOut(); ME = null; show("log
 $("a-save").onclick = () => busy($("a-save"), async () => {
   const nom = $("a-nom").value.trim();
   if (!nom) return dmsg("Le nom est obligatoire.", "err");
+  if (PK.pere.val == null) return dmsg("Choisissez le père, ou « Parent inconnu ».", "err");
+  if (PK.mere.val == null) return dmsg("Choisissez la mère, ou « Parent inconnu ».", "err");
+  const ext = !!EDIT_M && EDIT_M.est_cotisant === false;
+  let montant = 0, debut = null, verse = 0;
+  if (!ext) {
+    if ($("a-montant").value === "") return dmsg("Choisissez le montant à cotiser par mois.", "err");
+    if (!$("a-debut").value) return dmsg("Le mois de début de cotisation est obligatoire.", "err");
+    montant = parseInt($("a-montant").value, 10);
+    debut = $("a-debut").value + "-01";
+    verse = Math.max(parseInt($("a-verse").value, 10) || 0, 0);
+  }
   const val = id => $(id).value.trim() || null;
   const fiche = {
     nom, telephone: val("a-tel"), email: val("a-email"), sexe: val("a-sexe"),
     date_naissance: val("a-naiss"), lieu_naissance: val("a-lieu"), fonction: val("a-fonction"),
-    categorie_id: val("a-cat"), parent_id: val("a-parent")
+    pere_id: PK.pere.val !== "inconnu" ? PK.pere.val : null, pere_inconnu: PK.pere.val === "inconnu",
+    mere_id: PK.mere.val !== "inconnu" ? PK.mere.val : null, mere_inconnue: PK.mere.val === "inconnu"
   };
-  let error;
+  if (!ext) { fiche.montant_mensuel = montant; fiche.mois_debut = debut; fiche.montant_deja_verse = verse; }
+  let error, newId = null, genere = false;
   if (EDIT_ID) {
     fiche.statut_vital = $("a-vital").value;
     ({ error } = await db.from("membres").update(fiche).eq("id", EDIT_ID));
+    newId = EDIT_ID;
+    genere = !ext && !!EDIT_M && !EDIT_M.historique_genere;
   } else {
-    fiche.solde_depart = parseInt($("a-solde").value, 10) || 0;
-    ({ error } = await db.from("membres").insert(fiche));
+    fiche.est_cotisant = true; fiche.solde_depart = 0; fiche.historique_genere = false;
+    const r = await db.from("membres").insert(fiche).select("id").single();
+    error = r.error; newId = r.data ? r.data.id : null; genere = true;
   }
   if (error) {
     const t = error.message.toLowerCase();
     if (t.includes("duplicate") && t.includes("email")) return dmsg("Cet email est déjà utilisé par un autre membre.", "err");
     if (t.includes("duplicate") && t.includes("telephone")) return dmsg("Ce numéro est déjà utilisé par un autre membre.", "err");
     return dmsg("Enregistrement refusé : " + error.message, "err");
+  }
+  if (genere && newId) {
+    try { await genererHistorique(newId, debut, montant, verse); }
+    catch (e) {
+      await loadAll();
+      editMembre(newId);
+      return dmsg("Fiche enregistrée, mais le calcul des mois dus a échoué : " + (e.message || e) + ". Touchez Enregistrer les modifications pour réessayer.", "err");
+    }
   }
   const modif = !!EDIT_ID;
   resetForm();
@@ -705,4 +1009,4 @@ db.auth.onAuthStateChange(event => {
 })();
 </script>
 </body>
-  </html>
+</html>
